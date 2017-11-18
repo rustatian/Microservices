@@ -1,10 +1,11 @@
 package Models
 
+
 type User struct{
 	Username string
 	FullName string
-	email string
+	Email string
 	PasswordHash string
-	PasswordSalt string
 	IsDisables bool
+	JsonToken string
 }
