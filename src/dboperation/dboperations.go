@@ -50,7 +50,7 @@ func WriteDataToDb(user Models.User) bool {
 	return true
 }
 
-func LoginUser(user Models.User) (string, bool) {
+func GetHashFromDb(user Models.User) (string, bool) {
 	db, err := sql.Open("mysql", "root:ZXCfdsa1208@tcp(18.195.2.253:3306)/TaskCalendarDb")
 
 	if err != nil {
@@ -76,7 +76,7 @@ func LoginUser(user Models.User) (string, bool) {
 	return hash, true
 }
 
-func UpdateTokenForUser(token string) bool {
+func UpdateTokenForUser(user Models.User) bool {
 	db, err := sql.Open("mysql", "root:ZXCfdsa1208@tcp(18.195.2.253:3306)/TaskCalendarDb")
 
 	if err != nil {
@@ -84,6 +84,21 @@ func UpdateTokenForUser(token string) bool {
 		return false
 	}
 	defer db.Close()
+
+	upd, err := db.Prepare("UPDATE User SET PasswordHash = ? WHERE Username = ?")
+	if err != nil {
+		panic(err.Error())
+		return false
+	}
+
+	defer upd.Close()
+
+	_, err = upd.Exec(user.PasswordHash, user.Username)
+	if err != nil {
+		panic(err.Error())
+		return false
+	}
+
 	return true
 }
 

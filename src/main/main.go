@@ -50,6 +50,7 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Can't read Body", http.StatusBadRequest)
+		return
 	}
 	defer r.Body.Close()
 
@@ -59,19 +60,22 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	if erru != nil {
 		panic(erru.Error())
 		http.Error(w, "Username parse error", http.StatusInternalServerError)
+		return
 	}
 
 	password, _, _, errp := jsonparser.Get(body, "newUser", "password")
 	if errp != nil {
 		panic(errp.Error())
 		http.Error(w, "Password parse error", http.StatusInternalServerError)
+		return
 	}
 
 	user.Username = string(username)
 
-	hash, errf := dboperation.LoginUser(user)
+	hash, errf := dboperation.GetHashFromDb(user)
 	if errf == false {
 		http.Error(w, "Db operation error", http.StatusBadRequest)
+		return
 	}
 
 	var isGood bool = comparePassword(hash, password)
@@ -86,11 +90,17 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		key := []byte("ZXCfdsa1208")
 
 		JsonWebToken, _ := token.SignedString(key)
+		user.PasswordHash = JsonWebToken
 		w.Write([]byte(JsonWebToken))
-		dboperation.UpdateTokenForUser(JsonWebToken)
+		var isErr = dboperation.UpdateTokenForUser(user)
+		if isErr == false {
+			http.Error(w, "Error when update Hash for user", http.StatusInternalServerError)
+			return
+		}
 
 	} else {
 		http.Error(w, "Passwords do not match!", http.StatusUnauthorized)
+		return
 	}
 })
 
@@ -199,10 +209,6 @@ var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
 	},
 
 	SigningMethod: jwt.SigningMethodHS256,
-})
-
-var StatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("API is up and running"))
 })
 
 var ProductsHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
