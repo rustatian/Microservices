@@ -1,5 +1,6 @@
 package main
 
+
 import (
 	"net/http"
 	"time"
@@ -16,24 +17,14 @@ import (
 	"dboperation"
 )
 
+
 var mySigningKey = []byte("ZXCfdsa1208")
-
-type Message struct {
-	Name string
-	Body string
-	Time int64
-}
-
 
 
 func main() {
-
-	//dboperation.UserRegistration(Models.User{})
-
 	var r *mux.Router = mux.NewRouter()
 
 	r.Handle("/", mainHandle).Methods("GET")
-
 	r.Handle("/login", LoginHandle).Methods("POST")
 	r.Handle("/registration", RegistrationHandle).Methods("POST")
 	r.Handle("/get-token", GetTokenHandle).Methods("GET")
@@ -42,9 +33,11 @@ func main() {
 	http.ListenAndServe(":3000", loggetRoute)
 }
 
+
 var mainHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Hello from Belarus and gollang!!"))
+	w.Write([]byte("Hello from Belarus and golang!!"))
 })
+
 
 var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
@@ -56,12 +49,15 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 
 	var user Models.User
 
+
 	username, _, _, erru := jsonparser.Get(body, "newUser", "username")
 	if erru != nil {
 		panic(erru.Error())
 		http.Error(w, "Username parse error", http.StatusInternalServerError)
 		return
 	}
+
+	user.Username = string(username)
 
 	var isUserExist bool = dboperation.CheckifUserExist(user)
 	if isUserExist == false {
@@ -75,8 +71,6 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Password parse error", http.StatusInternalServerError)
 		return
 	}
-
-	user.Username = string(username)
 
 	hash, errf := dboperation.GetHashFromDb(user)
 	if errf == false {
@@ -110,6 +104,7 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	}
 })
 
+
 var GetTokenHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
@@ -122,6 +117,7 @@ var GetTokenHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reques
 
 	w.Write([]byte(tokenString))
 })
+
 
 var RegistrationHandle http.HandlerFunc = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
@@ -185,6 +181,7 @@ var RegistrationHandle http.HandlerFunc = http.HandlerFunc(func(w http.ResponseW
 	w.Write([]byte(JsonWT))
 })
 
+
 func HashAndSalt (pwd []byte) string {
 	hash, err := bcrypt.GenerateFromPassword(pwd, bcrypt.MinCost)
 	if err != nil {
@@ -194,6 +191,7 @@ func HashAndSalt (pwd []byte) string {
 	return string(hash)
 
 }
+
 
 func comparePassword(hashedPwd string, plainPwd []byte) bool {
 	byteHash := []byte(hashedPwd)
@@ -205,9 +203,11 @@ func comparePassword(hashedPwd string, plainPwd []byte) bool {
 	return true
 }
 
+
 var NotImplemented = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Not Implemented"))
 })
+
 
 var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
 	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
@@ -217,11 +217,13 @@ var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
 	SigningMethod: jwt.SigningMethodHS256,
 })
 
+
 var ProductsHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	//payload, _ := json.Marshal(products)
 	//w.Header().Set("Content-Type", "application/json")
 	//w.Write([]byte(payload))
 })
+
 
 var AddFeedbackHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	//var product Product
@@ -243,3 +245,5 @@ var AddFeedbackHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 	//	w.Write([]byte("Product Not Found"))
 	//}
 })
+
+
