@@ -63,6 +63,12 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	var isUserExist bool = dboperation.CheckifUserExist(user)
+	if isUserExist == false {
+		http.Error(w, "User does't exist", http.StatusNotAcceptable)
+		return
+	}
+
 	password, _, _, errp := jsonparser.Get(body, "newUser", "password")
 	if errp != nil {
 		panic(errp.Error())

@@ -102,3 +102,67 @@ func UpdateTokenForUser(user Models.User) bool {
 	return true
 }
 
+func CheckifUserExist(user Models.User) bool {
+	db, err := sql.Open("mysql", "root:ZXCfdsa1208@tcp(18.195.2.253:3306)/TaskCalendarDb")
+	if err != nil {
+		panic(err.Error())
+		return false
+	}
+	defer db.Close()
+
+	sel, err := db.Prepare("SELECT * FROM User WHERE Username = ?")
+	if err != nil {
+		panic(err.Error())
+		return false
+	}
+	defer sel.Close()
+
+	var username string
+
+	err = sel.QueryRow(user.Username).Scan(&username)
+	if err == nil { //NoRows error - is good, user does no exist
+		return true
+	} else {
+		return false // else - user exist
+	}
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
