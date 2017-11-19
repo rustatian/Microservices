@@ -121,9 +121,9 @@ func CheckifUserExist(user Models.User) bool {
 
 	err = sel.QueryRow(user.Username).Scan(&username)
 	if err == nil { //NoRows error - is good, user does no exist
-		return true
+		return false
 	} else {
-		return false // else - user exist
+		return true // else - user exist
 	}
 
 }
