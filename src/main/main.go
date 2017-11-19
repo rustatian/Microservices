@@ -7,14 +7,14 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/auth0/go-jwt-middleware"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/handlers"
-	"os"
+	//"github.com/gorilla/handlers"
 	"io/ioutil"
 	"github.com/buger/jsonparser"
 	"Models"
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"dboperation"
+	"github.com/rs/cors"
 )
 
 
@@ -24,13 +24,21 @@ var mySigningKey = []byte("ZXCfdsa1208")
 func main() {
 	var r *mux.Router = mux.NewRouter()
 
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowCredentials: true,
+		AllowedMethods: []string{"GET", "HEAD", "POST", "PUT", "OPTIONS"},
+	})
+
 	r.Handle("/", mainHandle).Methods("GET")
 	r.Handle("/login", LoginHandle).Methods("POST")
 	r.Handle("/registration", RegistrationHandle).Methods("POST")
 	r.Handle("/get-token", GetTokenHandle).Methods("GET")
 
-	var loggetRoute http.Handler = handlers.LoggingHandler(os.Stdout, r)
-	http.ListenAndServe(":3000", loggetRoute)
+	handler := c.Handler(r)
+
+	//var loggetRoute http.Handler = handlers.LoggingHandler(os.Stdout, r)
+	http.ListenAndServe(":3000", handler)
 }
 
 
@@ -50,7 +58,7 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	var user Models.User
 
 
-	username, _, _, erru := jsonparser.Get(body, "newUser", "username")
+	username, _, _, erru := jsonparser.Get(body, "user", "username")
 	if erru != nil {
 		panic(erru.Error())
 		http.Error(w, "Username parse error", http.StatusInternalServerError)
@@ -65,7 +73,7 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	password, _, _, errp := jsonparser.Get(body, "newUser", "password")
+	password, _, _, errp := jsonparser.Get(body, "user", "password")
 	if errp != nil {
 		panic(errp.Error())
 		http.Error(w, "Password parse error", http.StatusInternalServerError)
@@ -90,8 +98,11 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		key := []byte("ZXCfdsa1208")
 
 		JsonWebToken, _ := token.SignedString(key)
-		user.PasswordHash = JsonWebToken
+		user.JsonToken = JsonWebToken
+
+		w.Header().Set("token", JsonWebToken)
 		w.Write([]byte(JsonWebToken))
+
 		var isErr = dboperation.UpdateTokenForUser(user)
 		if isErr == false {
 			http.Error(w, "Error when update Hash for user", http.StatusInternalServerError)
@@ -125,6 +136,7 @@ var RegistrationHandle http.HandlerFunc = http.HandlerFunc(func(w http.ResponseW
 		http.Error(w, "Can't read", http.StatusBadRequest)
 		return
 	}
+
 
 	defer r.Body.Close()
 
@@ -161,6 +173,12 @@ var RegistrationHandle http.HandlerFunc = http.HandlerFunc(func(w http.ResponseW
 	user.Email = string(email)
 	user.IsDisables = false
 
+	var isUserExist bool = dboperation.CheckifUserExist(user)
+	if isUserExist == true {
+		http.Error(w, "User exist", http.StatusNotAcceptable)
+		return
+	}
+
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
 
@@ -178,6 +196,7 @@ var RegistrationHandle http.HandlerFunc = http.HandlerFunc(func(w http.ResponseW
 		return
 	}
 
+	w.Header().Set("token", JsonWT)
 	w.Write([]byte(JsonWT))
 })
 

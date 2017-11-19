@@ -8,7 +8,7 @@ import (
 
 
 var createTable string  = "CREATE TABLE User (ID INT NOT NULL, Username TEXT(100) NOT NULL, FullName TEXT(100) NOT NULL, " +
-	"email TEXT(150) NOT NULL, PasswordHash TEXT(500) NOT NULL, IsDisabled BOOL NOT NULL, " +
+	"email TEXT(150) NOT NULL, PasswordHash TEXT(500) NOT NULL, jwtToken TEXT(500) NOT NULL, IsDisabled BOOL NOT NULL, " +
 	"PRIMARY KEY (ID), UNIQUE INDEX ID_UNIQUE (ID ASC));"
 
 
@@ -38,7 +38,7 @@ func WriteDataToDb(user Models.User) bool {
 	}
 	defer db.Close()
 
-	stmIns, err := db.Prepare("INSERT INTO User (Username, FullName, email, PasswordHash, IsDisabled) VALUES (?, ?, ?, ?, ?)")
+	stmIns, err := db.Prepare("INSERT INTO User (Username, FullName, email, PasswordHash, jwtToken, IsDisabled) VALUES (?, ?, ?, ?, ?)")
 	defer stmIns.Close()
 
 	_, err = stmIns.Exec(user.Username, user.FullName, user.Email, user.PasswordHash, false)
@@ -59,7 +59,7 @@ func GetHashFromDb(user Models.User) (string, bool) {
 	}
 	defer db.Close()
 
-	sel, err := db.Prepare("SELECT PasswordHash FROM User WHERE Username = ?")
+	sel, err := db.Prepare("SELECT PasswordHash FROM User WHERE Username = ?;")
 	if err != nil {
 		panic(err.Error())
 		return "", false
@@ -85,7 +85,7 @@ func UpdateTokenForUser(user Models.User) bool {
 	}
 	defer db.Close()
 
-	upd, err := db.Prepare("UPDATE User SET PasswordHash = ? WHERE Username = ?")
+	upd, err := db.Prepare("UPDATE User SET jwtToken = ? WHERE Username = ?;")
 	if err != nil {
 		panic(err.Error())
 		return false
@@ -93,7 +93,7 @@ func UpdateTokenForUser(user Models.User) bool {
 
 	defer upd.Close()
 
-	_, err = upd.Exec(user.PasswordHash, user.Username)
+	_, err = upd.Exec(user.JsonToken, user.Username)
 	if err != nil {
 		panic(err.Error())
 		return false
@@ -110,17 +110,17 @@ func CheckifUserExist(user Models.User) bool {
 	}
 	defer db.Close()
 
-	sel, err := db.Prepare("SELECT * FROM User WHERE Username = ?")
+	sel, err := db.Prepare("SELECT ID FROM User WHERE Username = ?;")
 	if err != nil {
 		panic(err.Error())
 		return false
 	}
 	defer sel.Close()
 
-	var username string
+	var id int
 
-	err = sel.QueryRow(user.Username).Scan(&username)
-	if err == nil { //NoRows error - is good, user does no exist
+	err = sel.QueryRow(user.Username).Scan(&id)
+	if err != nil { //NoRows error - is good, user does no exist
 		return false
 	} else {
 		return true // else - user exist
