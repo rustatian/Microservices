@@ -7,22 +7,23 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/auth0/go-jwt-middleware"
 	"github.com/gorilla/mux"
-	//"github.com/gorilla/handlers"
 	"io/ioutil"
 	"github.com/buger/jsonparser"
-	"Models"
+	"models"
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"dboperation"
 	"github.com/rs/cors"
+	"os"
+	"encoding/json"
 )
 
-
-var mySigningKey = []byte("ZXCfdsa1208")
-
-
 func main() {
-	var r *mux.Router = mux.NewRouter()
+	var r = mux.NewRouter()
+
+	r.Headers("GET", "HEAD", "POST", "PUT", "OPTIONS")
+	r.Headers("X-Requested-With", "XMLHttpRequest")
+
 
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
@@ -30,15 +31,15 @@ func main() {
 		AllowedMethods: []string{"GET", "HEAD", "POST", "PUT", "OPTIONS"},
 	})
 
-	r.Handle("/", mainHandle).Methods("GET")
-	r.Handle("/login", LoginHandle).Methods("POST")
-	r.Handle("/registration", RegistrationHandle).Methods("POST")
-	r.Handle("/get-token", GetTokenHandle).Methods("GET")
+	r.HandleFunc("/", mainHandle).Methods("GET")
+	r.HandleFunc("/login", LoginHandle).Methods("POST")
+	r.HandleFunc("/registration", RegistrationHandle).Methods("POST")
+	r.HandleFunc("/get-token", GetTokenHandle).Methods("GET")
 
 	handler := c.Handler(r)
 
 	//var loggetRoute http.Handler = handlers.LoggingHandler(os.Stdout, r)
-	http.ListenAndServe(":3000", handler)
+	log.Fatal(http.ListenAndServe(":3000", handler))
 }
 
 
@@ -53,10 +54,10 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Can't read Body", http.StatusBadRequest)
 		return
 	}
+
 	defer r.Body.Close()
 
-	var user Models.User
-
+	var user models.User
 
 	username, _, _, erru := jsonparser.Get(body, "user", "username")
 	if erru != nil {
@@ -69,7 +70,7 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 
 	var isUserExist bool = dboperation.CheckifUserExist(user)
 	if isUserExist == false {
-		http.Error(w, "User does't exist", http.StatusNotAcceptable)
+		http.Error(w, "User does't exist", http.StatusForbidden)
 		return
 	}
 
@@ -95,13 +96,15 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		claims["admin"] = true
 		claims["name"] = string(username)
 		claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
-		key := []byte("ZXCfdsa1208")
+		key := []byte(configuration("config.json").DbCreds)
 
 		JsonWebToken, _ := token.SignedString(key)
 		user.JsonToken = JsonWebToken
 
-		w.Header().Set("token", JsonWebToken)
-		w.Write([]byte(JsonWebToken))
+		//w.WriteHeader(http.StatusOK)
+		//w.Header().Set("token", JsonWebToken)
+		w.Header().Add("token", JsonWebToken)
+		//w.Write([]byte(JsonWebToken))
 
 		var isErr = dboperation.UpdateTokenForUser(user)
 		if isErr == false {
@@ -124,7 +127,7 @@ var GetTokenHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reques
 	claims["name"] = "Artsiom Piashchynski"
 	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 
-	tokenString, _ := token.SignedString(mySigningKey)
+	tokenString, _ := token.SignedString(configuration("config.json").DbCreds)
 
 	w.Write([]byte(tokenString))
 })
@@ -166,7 +169,7 @@ var RegistrationHandle http.HandlerFunc = http.HandlerFunc(func(w http.ResponseW
 		return
 	}
 
-	var user Models.User
+	var user models.User
 	user.FullName = string(fullname)
 	user.Username = string(username)
 	user.PasswordHash = HashAndSalt(password)
@@ -187,7 +190,7 @@ var RegistrationHandle http.HandlerFunc = http.HandlerFunc(func(w http.ResponseW
 	claims["name"] = user.Username
 	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 
-	JsonWT, _ := token.SignedString(mySigningKey)
+	JsonWT, _ := token.SignedString(configuration("config.json").DbCreds)
 	user.JsonToken = JsonWT
 
 	var isSuccsess bool = dboperation.WriteDataToDb(user)
@@ -230,7 +233,7 @@ var NotImplemented = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reques
 
 var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
 	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
-		return mySigningKey, nil
+		return configuration("config.json").DbCreds, nil
 	},
 
 	SigningMethod: jwt.SigningMethodHS256,
@@ -265,4 +268,14 @@ var AddFeedbackHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 	//}
 })
 
+func configuration(configName string) models.Configuration {
+	file, _ := os.Open(configName)
+	decode := json.NewDecoder(file)
+	configuration := models.Configuration{}
+	err := decode.Decode(&configuration)
+	if err != nil {
+		panic(err.Error())
+	}
+	return configuration
+}
 

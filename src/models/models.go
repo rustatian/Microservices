@@ -1,4 +1,4 @@
-package Models
+package models
 
 
 type User struct{
@@ -8,4 +8,9 @@ type User struct{
 	PasswordHash string
 	IsDisables bool
 	JsonToken string
+}
+
+type Configuration struct {
+	DbCreds string
+	Secret string
 }

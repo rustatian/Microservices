@@ -3,7 +3,9 @@ package dboperation
 import "database/sql"
 import (
 	_ "github.com/go-sql-driver/mysql"
-	"Models"
+	"models"
+	"os"
+	"encoding/json"
 )
 
 
@@ -11,27 +13,39 @@ var createTable string  = "CREATE TABLE User (ID INT NOT NULL, Username TEXT(100
 	"email TEXT(150) NOT NULL, PasswordHash TEXT(500) NOT NULL, jwtToken TEXT(500) NOT NULL, IsDisabled BOOL NOT NULL, " +
 	"PRIMARY KEY (ID), UNIQUE INDEX ID_UNIQUE (ID ASC));"
 
-
-func UserRegistration(userModel Models.User) {
-
-}
-
-func CreateDatabase() bool {
-	db, err := sql.Open("mysql", "root:ZXCfdsa1208@tcp(18.195.2.253:3306)/TaskCalendarDb")
+func configuration(configName string) models.Configuration {
+	file, _ := os.Open(configName)
+	decode := json.NewDecoder(file)
+	configuration := models.Configuration{}
+	err := decode.Decode(&configuration)
 	if err != nil {
 		panic(err.Error())
+	}
+	return configuration
+}
+
+
+func CreateDatabase() bool {
+	var config = configuration("config.json")
+
+	db, err := sql.Open("mysql", config.DbCreds)
+	if err != nil {
+		panic(err.Error())
+		return false
 	}
 
 	ret, err := db.Exec(createTable)
 	if err != nil{
 		panic(ret)
+		return false
 	}
 
 	return true
 }
 
-func WriteDataToDb(user Models.User) bool {
-	db, err := sql.Open("mysql", "root:ZXCfdsa1208@tcp(18.195.2.253:3306)/TaskCalendarDb")
+func WriteDataToDb(user models.User) bool {
+	var config = configuration("config.json")
+	db, err := sql.Open("mysql", config.DbCreds)
 	if err != nil {
 		panic(err.Error())
 		return false
@@ -50,9 +64,10 @@ func WriteDataToDb(user Models.User) bool {
 	return true
 }
 
-func GetHashFromDb(user Models.User) (string, bool) {
-	db, err := sql.Open("mysql", "root:ZXCfdsa1208@tcp(18.195.2.253:3306)/TaskCalendarDb")
+func GetHashFromDb(user models.User) (string, bool) {
+	var config = configuration("config.json")
 
+	db, err := sql.Open("mysql", config.DbCreds)
 	if err != nil {
 		panic(err.Error())
 		return "", false
@@ -76,8 +91,9 @@ func GetHashFromDb(user Models.User) (string, bool) {
 	return hash, true
 }
 
-func UpdateTokenForUser(user Models.User) bool {
-	db, err := sql.Open("mysql", "root:ZXCfdsa1208@tcp(18.195.2.253:3306)/TaskCalendarDb")
+func UpdateTokenForUser(user models.User) bool {
+	var config = configuration("config.json")
+	db, err := sql.Open("mysql", config.DbCreds)
 
 	if err != nil {
 		panic(err.Error())
@@ -102,8 +118,9 @@ func UpdateTokenForUser(user Models.User) bool {
 	return true
 }
 
-func CheckifUserExist(user Models.User) bool {
-	db, err := sql.Open("mysql", "root:ZXCfdsa1208@tcp(18.195.2.253:3306)/TaskCalendarDb")
+func CheckifUserExist(user models.User) bool {
+	var config = configuration("config.json")
+	db, err := sql.Open("mysql", config.DbCreds)
 	if err != nil {
 		panic(err.Error())
 		return false
