@@ -21,10 +21,6 @@ import (
 func main() {
 	var r = mux.NewRouter()
 
-	r.Headers("GET", "HEAD", "POST", "PUT", "OPTIONS")
-	r.Headers("X-Requested-With", "XMLHttpRequest")
-
-
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowCredentials: true,
@@ -51,7 +47,7 @@ var mainHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "Can't read Body", http.StatusBadRequest)
+		http.Error(w, "Can't read Body", http.StatusInternalServerError)
 		return
 	}
 
@@ -70,20 +66,20 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 
 	var isUserExist bool = dboperation.CheckifUserExist(user)
 	if isUserExist == false {
-		http.Error(w, "User does't exist", http.StatusForbidden)
+		http.Error(w, "User does't exist", http.StatusNotFound)
 		return
 	}
 
-	password, _, _, errp := jsonparser.Get(body, "user", "password")
-	if errp != nil {
-		panic(errp.Error())
+	password, _, _, err := jsonparser.Get(body, "user", "password")
+	if err != nil {
+		panic(err.Error())
 		http.Error(w, "Password parse error", http.StatusInternalServerError)
 		return
 	}
 
-	hash, errf := dboperation.GetHashFromDb(user)
-	if errf == false {
-		http.Error(w, "Db operation error", http.StatusBadRequest)
+	hash, uerr := dboperation.GetHashFromDb(user)
+	if uerr == false {
+		http.Error(w, "Db operation error", http.StatusInternalServerError)
 		return
 	}
 
@@ -101,10 +97,13 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		JsonWebToken, _ := token.SignedString(key)
 		user.JsonToken = JsonWebToken
 
-		//w.WriteHeader(http.StatusOK)
-		//w.Header().Set("token", JsonWebToken)
-		w.Header().Add("token", JsonWebToken)
-		//w.Write([]byte(JsonWebToken))
+		js, err := json.Marshal(JsonWebToken)
+		if err != nil {
+			w.Write(js)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
 
 		var isErr = dboperation.UpdateTokenForUser(user)
 		if isErr == false {
@@ -113,7 +112,7 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		}
 
 	} else {
-		http.Error(w, "Passwords do not match!", http.StatusUnauthorized)
+		http.Error(w, "Incorrect username or password", http.StatusUnauthorized)
 		return
 	}
 })
@@ -143,24 +142,24 @@ var RegistrationHandle http.HandlerFunc = http.HandlerFunc(func(w http.ResponseW
 
 	defer r.Body.Close()
 
-	fullname, _, _, errf := jsonparser.Get(body, "newUser", "fullname")
-	if errf != nil {
-		panic(errf.Error())
+	fullname, _, _, err := jsonparser.Get(body, "newUser", "fullname")
+	if err != nil {
+		panic(err.Error())
 		http.Error(w, "Fullname parse error", http.StatusInternalServerError)
 	}
-	username, _, _, erru := jsonparser.Get(body, "newUser", "username")
-	if erru != nil {
-		panic(erru.Error())
+	username, _, _, err := jsonparser.Get(body, "newUser", "username")
+	if err != nil {
+		panic(err.Error())
 		http.Error(w, "Username parse error", http.StatusInternalServerError)
 	}
-	password, _, _, errp := jsonparser.Get(body, "newUser", "password")
-	if errp != nil {
-		panic(errp.Error())
+	password, _, _, err := jsonparser.Get(body, "newUser", "password")
+	if err != nil {
+		panic(err.Error())
 		http.Error(w, "Password parse error", http.StatusInternalServerError)
 	}
-	email, _, _, erre := jsonparser.Get(body, "newUser", "email")
-	if erre != nil {
-		panic(erre.Error())
+	email, _, _, err := jsonparser.Get(body, "newUser", "email")
+	if err != nil {
+		panic(err.Error())
 		http.Error(w, "Email parse error", http.StatusInternalServerError)
 	}
 
@@ -190,8 +189,8 @@ var RegistrationHandle http.HandlerFunc = http.HandlerFunc(func(w http.ResponseW
 	claims["name"] = user.Username
 	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 
-	JsonWT, _ := token.SignedString(configuration("config.json").DbCreds)
-	user.JsonToken = JsonWT
+	JsonWebToken, _ := token.SignedString(configuration("config.json").DbCreds)
+	user.JsonToken = JsonWebToken
 
 	var isSuccsess bool = dboperation.WriteDataToDb(user)
 	if isSuccsess == false{
@@ -199,8 +198,12 @@ var RegistrationHandle http.HandlerFunc = http.HandlerFunc(func(w http.ResponseW
 		return
 	}
 
-	w.Header().Set("token", JsonWT)
-	w.Write([]byte(JsonWT))
+	js, err := json.Marshal(JsonWebToken)
+	if err != nil {
+		w.Write(js)
+	} else {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 })
 
 
