@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-var createTable string = "CREATE TABLE User (ID INT NOT NULL, Username TEXT(100) NOT NULL, FullName TEXT(100) NOT NULL, " +
+var createTable = "CREATE TABLE User (ID INT NOT NULL, Username TEXT(100) NOT NULL, FullName TEXT(100) NOT NULL, " +
 	"email TEXT(150) NOT NULL, PasswordHash TEXT(500) NOT NULL, jwtToken TEXT(500) NOT NULL, IsDisabled BOOL NOT NULL, " +
 	"PRIMARY KEY (ID), UNIQUE INDEX ID_UNIQUE (ID ASC));"
 
@@ -50,10 +50,10 @@ func WriteDataToDb(user models.User) bool {
 	}
 	defer db.Close()
 
-	stmIns, err := db.Prepare("INSERT INTO User (Username, FullName, email, PasswordHash, jwtToken, IsDisabled) VALUES (?, ?, ?, ?, ?)")
+	stmIns, err := db.Prepare("INSERT INTO User (Username, FullName, email, PasswordHash, jwtToken, IsDisabled) VALUES (?, ?, ?, ?, ?, ?);")
 	defer stmIns.Close()
 
-	_, err = stmIns.Exec(user.Username, user.FullName, user.Email, user.PasswordHash, false)
+	_, err = stmIns.Exec(user.Username, user.FullName, user.Email, user.PasswordHash, user.JsonToken, user.IsDisables)
 	if err != nil {
 		panic(err.Error())
 		return false
@@ -116,7 +116,7 @@ func UpdateTokenForUser(user models.User) bool {
 	return true
 }
 
-func CheckifUserExist(user models.User) bool {
+func CheckifUserExist(user string) bool {
 	var config = configuration("config.json")
 	db, err := sql.Open("mysql", config.DbCreds)
 	if err != nil {
@@ -134,7 +134,7 @@ func CheckifUserExist(user models.User) bool {
 
 	var id int
 
-	err = sel.QueryRow(user.Username).Scan(&id)
+	err = sel.QueryRow(user).Scan(&id)
 	if err != nil { //NoRows error - is good, user does no exist
 		return false
 	} else {
