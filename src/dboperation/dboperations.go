@@ -2,14 +2,13 @@ package dboperation
 
 import "database/sql"
 import (
+	"encoding/json"
 	_ "github.com/go-sql-driver/mysql"
 	"models"
 	"os"
-	"encoding/json"
 )
 
-
-var createTable string  = "CREATE TABLE User (ID INT NOT NULL, Username TEXT(100) NOT NULL, FullName TEXT(100) NOT NULL, " +
+var createTable string = "CREATE TABLE User (ID INT NOT NULL, Username TEXT(100) NOT NULL, FullName TEXT(100) NOT NULL, " +
 	"email TEXT(150) NOT NULL, PasswordHash TEXT(500) NOT NULL, jwtToken TEXT(500) NOT NULL, IsDisabled BOOL NOT NULL, " +
 	"PRIMARY KEY (ID), UNIQUE INDEX ID_UNIQUE (ID ASC));"
 
@@ -24,7 +23,6 @@ func configuration(configName string) models.Configuration {
 	return configuration
 }
 
-
 func CreateDatabase() bool {
 	var config = configuration("config.json")
 
@@ -35,7 +33,7 @@ func CreateDatabase() bool {
 	}
 
 	ret, err := db.Exec(createTable)
-	if err != nil{
+	if err != nil {
 		panic(ret)
 		return false
 	}
@@ -145,41 +143,28 @@ func CheckifUserExist(user models.User) bool {
 
 }
 
+func CheckifMailExist(user models.User) bool {
+	var config = configuration("config.json")
+	db, err := sql.Open("mysql", config.DbCreds)
+	if err != nil {
+		panic(err.Error())
+		return false
+	}
+	defer db.Close()
 
+	sel, err := db.Prepare("SELECT ID FROM User WHERE email = ?;")
+	if err != nil {
+		panic(err.Error())
+		return false
+	}
+	defer sel.Close()
 
+	var id int
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	err = sel.QueryRow(user.Email).Scan(&id)
+	if err != nil { //NoRows error - is good, user does no exist
+		return false
+	} else {
+		return true // else - user exist
+	}
+}
