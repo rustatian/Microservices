@@ -31,6 +31,7 @@ func main() {
 	r.HandleFunc("/get-token", GetTokenHandle).Methods("GET")
 	r.HandleFunc("/registration/email", validationMailHandle).Methods("POST")
 	r.HandleFunc("/registration/user", validationUserHandle).Methods("POST")
+	r.HandleFunc("/shutdown", shutdown).Methods("GET")
 
 	handler := c.Handler(r)
 
@@ -301,29 +302,13 @@ var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
 	SigningMethod: jwt.SigningMethodHS256,
 })
 
-var AddFeedbackHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	//var product Product
-	//var vars map[string]string = mux.Vars(r)
-	//var slug string = vars["slug"]
-	//
-	//for _, p := range products {
-	//	if p.Slug == slug {
-	//		product = p
-	//	}
-	//}
-	//
-	//w.Header().Set("Content-Type", "application/json")
-	//
-	//if product.Slug != "" {
-	//	payload, _ := json.Marshal(product)
-	//	w.Write([]byte(payload))
-	//} else {
-	//	w.Write([]byte("Product Not Found"))
-	//}
+var shutdown = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	os.Exit(0)
 })
 
 func configuration(configName string) models.Configuration {
 	file, _ := os.Open(configName)
+	defer file.Close()
 	decode := json.NewDecoder(file)
 	configuration := models.Configuration{}
 	err := decode.Decode(&configuration)

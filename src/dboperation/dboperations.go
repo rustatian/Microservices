@@ -14,6 +14,7 @@ var createTable = "CREATE TABLE User (ID INT NOT NULL, Username TEXT(100) NOT NU
 
 func configuration(configName string) models.Configuration {
 	file, _ := os.Open(configName)
+	defer file.Close()
 	decode := json.NewDecoder(file)
 	configuration := models.Configuration{}
 	err := decode.Decode(&configuration)
