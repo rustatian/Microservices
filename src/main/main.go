@@ -39,10 +39,13 @@ func main() {
 }
 
 var mainHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	log.Print(r)
 	w.Write([]byte("Hello from Belarus and golang!!"))
 })
 
 var validationMailHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	log.Print(r)
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Can't read Body", http.StatusInternalServerError)
@@ -81,6 +84,8 @@ var validationMailHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.
 })
 
 var validationUserHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	log.Print(r)
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Can't read Body", http.StatusInternalServerError)
@@ -112,6 +117,8 @@ var validationUserHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.
 })
 
 var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	log.Print(r)
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Can't read Body", http.StatusInternalServerError)
@@ -186,6 +193,8 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 })
 
 var GetTokenHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	log.Print(r)
+
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
 
@@ -200,6 +209,8 @@ var GetTokenHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reques
 })
 
 var RegistrationHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	log.Print(r)
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Can't read", http.StatusBadRequest)
