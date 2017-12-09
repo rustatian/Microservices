@@ -1,9 +1,8 @@
-package dbmicroservice
+package database
 
 import (
 	"encoding/json"
 	_ "github.com/go-sql-driver/mysql"
-	"TaskManager/src/models"
 	"os"
 	"database/sql"
 )
@@ -12,11 +11,25 @@ var createTable = "CREATE TABLE User (ID INT NOT NULL, Username TEXT(100) NOT NU
 	"email TEXT(150) NOT NULL, PasswordHash TEXT(500) NOT NULL, jwtToken TEXT(500) NOT NULL, IsDisabled BOOL NOT NULL, " +
 	"PRIMARY KEY (ID), UNIQUE INDEX ID_UNIQUE (ID ASC));"
 
-func configuration(configName string) models.Configuration {
+type User struct {
+	Username     string
+	FullName     string
+	Email        string
+	PasswordHash string
+	IsDisables   bool
+	JsonToken    string
+}
+
+type Configuration struct {
+	DbCreds string
+	Secret  string
+}
+
+func configuration(configName string) Configuration {
 	file, _ := os.Open(configName)
 	defer file.Close()
 	decode := json.NewDecoder(file)
-	configuration := models.Configuration{}
+	configuration := Configuration{}
 	err := decode.Decode(&configuration)
 	if err != nil {
 		panic(err.Error())
@@ -42,7 +55,7 @@ func CreateDatabase() bool {
 	return true
 }
 
-func WriteDataToDb(user models.User) bool {
+func WriteDataToDb(user User) bool {
 	var config = configuration("config.json")
 	db, err := sql.Open("mysql", config.DbCreds)
 	if err != nil {
@@ -63,7 +76,7 @@ func WriteDataToDb(user models.User) bool {
 	return true
 }
 
-func GetHashFromDb(user models.User) (string, bool) {
+func GetHashFromDb(user User) (string, bool) {
 	var config = configuration("config.json")
 
 	db, err := sql.Open("mysql", config.DbCreds)
@@ -90,7 +103,7 @@ func GetHashFromDb(user models.User) (string, bool) {
 	return hash, true
 }
 
-func UpdateTokenForUser(user models.User) bool {
+func UpdateTokenForUser(user User) bool {
 	var config = configuration("config.json")
 	db, err := sql.Open("mysql", config.DbCreds)
 
@@ -144,7 +157,7 @@ func CheckifUserExist(user string) bool {
 
 }
 
-func CheckifMailExist(user models.User) bool {
+func CheckifMailExist(user User) bool {
 	var config = configuration("config.json")
 	db, err := sql.Open("mysql", config.DbCreds)
 	if err != nil {
