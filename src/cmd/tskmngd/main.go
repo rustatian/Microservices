@@ -1,19 +1,20 @@
 package main
 
 import (
-	"dboperation"
+	"TaskManager/src/dbmicroservice"
+	"TaskManager/src/models"
 	"encoding/json"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/auth0/go-jwt-middleware"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"golang.org/x/crypto/bcrypt"
-	"io/ioutil"
-	"log"
-	"models"
-	"net/http"
-	"os"
-	"time"
 )
 
 func main() {
@@ -24,6 +25,7 @@ func main() {
 		AllowCredentials: true,
 		AllowedMethods:   []string{"GET", "HEAD", "POST", "PUT", "OPTIONS"},
 	})
+
 
 	r.HandleFunc("/", mainHandle).Methods("GET")
 	r.HandleFunc("/login", LoginHandle).Methods("POST")
@@ -62,22 +64,23 @@ var validationMailHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.
 	err = json.Unmarshal(body, &mail)
 
 	if err != nil {
-		panic(err.Error())
 		http.Error(w, "Email parse error", http.StatusInternalServerError)
-		return
+		panic(err.Error())
 	}
 
 	UnparsedEmail := mail.(map[string]interface{})
 	if str, ok := UnparsedEmail["email"].(string); ok {
 		user.Email = str
 
-		var isEmailExist = dboperation.CheckifMailExist(user)
+		var isEmailExist = dbmicroservice.CheckifMailExist(user)
 		if isEmailExist == false {
 			w.WriteHeader(http.StatusOK)
+			json, _ := json.Marshal([]byte("Свободная касса!!"))
+			w.Write(json)
 			return
-		} else {
-			http.Error(w, "Email already registered!", http.StatusConflict)
 		}
+		http.Error(w, "Email already registered!", http.StatusConflict)
+
 	} else {
 		http.Error(w, "Email parse error", http.StatusInternalServerError)
 	}
@@ -85,7 +88,7 @@ var validationMailHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.
 })
 
 var validationUserHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	log.Print(r)
+	log.Print(r.Header)
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -101,17 +104,19 @@ var validationUserHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.
 	userVars := i.(map[string]interface{})
 
 	if str, ok := userVars["user"].(string); ok {
-		var isUserExist = dboperation.CheckifUserExist(str)
+		var isUserExist = dbmicroservice.CheckifUserExist(str)
 		if isUserExist == false {
 			w.WriteHeader(http.StatusOK)
+			json, _ := json.Marshal([]byte("Свободная касса!!"))
+			w.Write(json)
 			return
 		} else {
 			http.Error(w, "User exist!", http.StatusConflict)
 		}
 
 	} else {
-		panic(err.Error())
 		http.Error(w, "Username parse error", http.StatusInternalServerError)
+		panic(err.Error())
 		return
 	}
 
@@ -140,7 +145,7 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 
 	unparcedJsn := i.(map[string]interface{})
 	if usrStr, ok := unparcedJsn["username"].(string); ok {
-		var isUserExist = dboperation.CheckifUserExist(usrStr)
+		var isUserExist = dbmicroservice.CheckifUserExist(usrStr)
 
 		if isUserExist == false {
 			http.Error(w, "User does't exist", http.StatusNotFound)
@@ -152,7 +157,7 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 
 	if pswdStr, ok := unparcedJsn["password"].(string); ok {
 
-		hash, ok := dboperation.GetHashFromDb(user)
+		hash, ok := dbmicroservice.GetHashFromDb(user)
 		if ok == false {
 			http.Error(w, "Db operation error", http.StatusInternalServerError)
 			return
@@ -176,7 +181,7 @@ var LoginHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 			JsonWebToken, _ := token.SignedString(secret)
 			user.JsonToken = JsonWebToken
 
-			var isErr = dboperation.UpdateTokenForUser(user)
+			var isErr = dbmicroservice.UpdateTokenForUser(user)
 			if isErr == false {
 				http.Error(w, "Error when update Hash for user", http.StatusInternalServerError)
 				return
@@ -241,7 +246,7 @@ var RegistrationHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 	user.Email = string(email)
 	user.IsDisables = false
 
-	var isUserExist = dboperation.CheckifUserExist(string(username))
+	var isUserExist = dbmicroservice.CheckifUserExist(string(username))
 	if isUserExist == true {
 		http.Error(w, "User exist", http.StatusConflict)
 		return
@@ -263,7 +268,7 @@ var RegistrationHandle = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 	}
 	user.JsonToken = tokenString
 
-	var isSuccsess = dboperation.WriteDataToDb(user)
+	var isSuccsess = dbmicroservice.WriteDataToDb(user)
 	if isSuccsess == false {
 		http.Error(w, "Error when writing to database", http.StatusInternalServerError)
 		return

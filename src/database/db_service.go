@@ -1,11 +1,11 @@
-package dboperation
+package dbmicroservice
 
-import "database/sql"
 import (
 	"encoding/json"
 	_ "github.com/go-sql-driver/mysql"
-	"models"
+	"TaskManager/src/models"
 	"os"
+	"database/sql"
 )
 
 var createTable = "CREATE TABLE User (ID INT NOT NULL, Username TEXT(100) NOT NULL, FullName TEXT(100) NOT NULL, " +
@@ -51,7 +51,7 @@ func WriteDataToDb(user models.User) bool {
 	}
 	defer db.Close()
 
-	stmIns, err := db.Prepare("INSERT INTO User (Username, FullName, email, PasswordHash, jwtToken, IsDisabled) VALUES (?, ?, ?, ?, ?, ?);")
+	stmIns, err := db.Prepare("INSERT INTO USER (Username, FullName, email, PasswordHash, jwtToken, IsDisabled) VALUES (?, ?, ?, ?, ?, ?);")
 	defer stmIns.Close()
 
 	_, err = stmIns.Exec(user.Username, user.FullName, user.Email, user.PasswordHash, user.JsonToken, user.IsDisables)
@@ -73,7 +73,7 @@ func GetHashFromDb(user models.User) (string, bool) {
 	}
 	defer db.Close()
 
-	sel, err := db.Prepare("SELECT PasswordHash FROM User WHERE Username = ?;")
+	sel, err := db.Prepare("SELECT PasswordHash FROM USER WHERE Username = ?;")
 	if err != nil {
 		panic(err.Error())
 		return "", false
@@ -100,7 +100,7 @@ func UpdateTokenForUser(user models.User) bool {
 	}
 	defer db.Close()
 
-	upd, err := db.Prepare("UPDATE User SET jwtToken = ? WHERE Username = ?;")
+	upd, err := db.Prepare("UPDATE USER SET jwtToken = ? WHERE Username = ?;")
 	if err != nil {
 		panic(err.Error())
 		return false
@@ -126,7 +126,7 @@ func CheckifUserExist(user string) bool {
 	}
 	defer db.Close()
 
-	sel, err := db.Prepare("SELECT ID FROM User WHERE Username = ?;")
+	sel, err := db.Prepare("SELECT ID FROM USER WHERE Username = ?;")
 	if err != nil {
 		panic(err.Error())
 		return false
@@ -153,7 +153,7 @@ func CheckifMailExist(user models.User) bool {
 	}
 	defer db.Close()
 
-	sel, err := db.Prepare("SELECT ID FROM User WHERE email = ?;")
+	sel, err := db.Prepare("SELECT ID FROM USER WHERE email = ?;")
 	if err != nil {
 		panic(err.Error())
 		return false
