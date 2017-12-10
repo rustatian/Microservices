@@ -1,5 +1,5 @@
 # TaskManager
-Backend for TaskManager written in GO
+Backend for TaskManager (https://github.com/ArtsiomPiashchynski/TaskManager) written in GO
 
 # Auth
 
