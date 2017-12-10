@@ -7,30 +7,24 @@ import (
 	"encoding/json"
 	"bytes"
 	"io/ioutil"
-	"github.com/go-kit/kit/sd"
-	"io"
-	"strings"
-	"net/url"
-	"github.com/go-kit/kit/endpoint"
-	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/auth/jwt"
 )
 
 // Make Http Handler
-func MakeHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logger) http.Handler {
+func MakeVaultHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logger) http.Handler {
 	r := mux.NewRouter()
 	options := []httptransport.ServerOption{
 		httptransport.ServerErrorLogger(logger),
 		httptransport.ServerErrorEncoder(encodeError),
 	}
 
-
 	r.Methods("POST").Path("/vaultsvc/hash").Handler(httptransport.NewServer(
 		endpoint.HashEnpoint,
 		DecodeHashRequest,
 		EncodeResponce,
-		options...,
+		append(options, httptransport.ServerBefore(jwt.HTTPToContext()))...,
 	))
 
 	r.Methods("POST").Path("/vaultsvc/validate").Handler(httptransport.NewServer(
@@ -47,9 +41,6 @@ func MakeHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logger) h
 		EncodeResponce,
 		options...,
 	))
-
-	// GET /metrics
-	//r.Path("/metrics").Handler(stdprometheus.Handler())
 
 	return r
 }
@@ -121,35 +112,6 @@ func EncodeRequest(_ context.Context, req *http.Request, request interface{}) er
 	return nil
 }
 
-func VaultSvcFactory(ctx context.Context, method, path string) sd.Factory {
-	return func(instance string) (endpoint.Endpoint, io.Closer, error) {
-		if !strings.HasPrefix(instance, "http") {
-			instance = "http://" + instance
-		}
-		tgt, err := url.Parse(instance)
-		if err != nil {
-			return nil, nil, err
-		}
-		tgt.Path = path
-
-		var (
-			enc httptransport.EncodeRequestFunc
-			dec httptransport.DecodeResponseFunc
-		)
-		switch path {
-		case "/hash":
-			enc, dec = EncodeRequest, DecodeHashResponce
-		case "/validate":
-			enc, dec = EncodeRequest, DecodeValidateResponce
-		case "/health":
-			enc, dec = EncodeRequest, DecodeHealthResponce
-		default:
-			return nil, nil, fmt.Errorf("unknown stringsvc path %q", path)
-		}
-
-		return httptransport.NewClient(method, tgt, enc, dec).Endpoint(), nil, nil
-	}
-}
 
 func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	if err == nil {

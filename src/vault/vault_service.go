@@ -2,28 +2,32 @@ package vault
 
 import (
 	"context"
-	"golang.org/x/crypto/bcrypt"
-	"github.com/go-kit/kit/endpoint"
 	"errors"
-	stdopentracing "github.com/opentracing/opentracing-go"
-	"github.com/go-kit/kit/ratelimit"
+	stdjwt "github.com/dgrijalva/jwt-go"
+	"github.com/go-kit/kit/auth/jwt"
+	"github.com/go-kit/kit/circuitbreaker"
+	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/ratelimit"
+	"github.com/go-kit/kit/tracing/opentracing"
+	stdopentracing "github.com/opentracing/opentracing-go"
+	"github.com/sony/gobreaker"
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/time/rate"
 	"time"
-	"github.com/go-kit/kit/circuitbreaker"
-	"github.com/sony/gobreaker"
-	"github.com/go-kit/kit/tracing/opentracing"
 )
 
-type IVaultService interface {
+type Service interface {
 	Hash(ctx context.Context, password string) (string, error)
 	Validate(ctx context.Context, password, hash string) (bool, error)
 	HealthCheck() bool
 }
 
-func NewVaultService() IVaultService {
+func NewVaultService() Service {
 	return newVaultService{}
 }
+
+type ServiceMiddleware func(service Service) Service
 
 type newVaultService struct {}
 
@@ -48,6 +52,7 @@ type validateResponse struct {
 
 
 type healthRequest struct {
+	//TODO Create health logic, check free memory, disk space
 
 }
 
@@ -107,7 +112,7 @@ func (e Endpoints) Validate(ctx context.Context, password, hash string) (bool, e
 	return validateResp.Valid, nil
 }
 
-func MakeHashEndpoint(svc IVaultService) endpoint.Endpoint {
+func MakeHashEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(hashRequest)
 		v, err := svc.Hash(ctx, req.Password)
@@ -118,7 +123,7 @@ func MakeHashEndpoint(svc IVaultService) endpoint.Endpoint {
 	}
 }
 
-func MakeValidateEndpoint(svc IVaultService) endpoint.Endpoint {
+func MakeValidateEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(validateRequest)
 		v, err := svc.Validate(ctx, req.Password, req.Hash)
@@ -129,7 +134,7 @@ func MakeValidateEndpoint(svc IVaultService) endpoint.Endpoint {
 	}
 }
 
-func MakeHealtEndpoint(svc IVaultService) endpoint.Endpoint {
+func MakeHealtEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		//req := request.(healthRequest)
 		v := svc.HealthCheck()
@@ -137,10 +142,12 @@ func MakeHealtEndpoint(svc IVaultService) endpoint.Endpoint {
 	}
 }
 
-func NewEndpoints(svc IVaultService, logger log.Logger, trace stdopentracing.Tracer) Endpoints {
+func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) Endpoints {
+	kf := func(token *stdjwt.Token) (interface{}, error) { return []byte("%kxkstXG%@uEG4^fj_gt8*XK?tzG@ddY#+wAd"), nil }
 	var hashEndpoint endpoint.Endpoint
 	{
 		hashEndpoint = MakeHashEndpoint(svc)
+		hashEndpoint = jwt.NewParser(kf, stdjwt.SigningMethodHS256, jwt.StandardClaimsFactory)(hashEndpoint)
 		hashEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(hashEndpoint)
 		hashEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(hashEndpoint)
 		hashEndpoint = opentracing.TraceServer(trace, "hash")(hashEndpoint)
@@ -149,6 +156,7 @@ func NewEndpoints(svc IVaultService, logger log.Logger, trace stdopentracing.Tra
 	var validateEndpoint endpoint.Endpoint
 	{
 		validateEndpoint = MakeValidateEndpoint(svc)
+		validateEndpoint = jwt.NewParser(kf, stdjwt.SigningMethodHS256, jwt.StandardClaimsFactory)(validateEndpoint)
 		validateEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(validateEndpoint)
 		validateEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(validateEndpoint)
 		validateEndpoint = opentracing.TraceServer(trace, "validate")(validateEndpoint)

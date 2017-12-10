@@ -2,9 +2,9 @@ package vault
 
 import (
 	"context"
-	"time"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
+	"time"
 )
 
 func LoggingMiddlware(logger log.Logger) endpoint.Middleware {

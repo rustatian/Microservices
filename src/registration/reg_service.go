@@ -1,0 +1,4 @@
+package registration
+
+func main() {
+}

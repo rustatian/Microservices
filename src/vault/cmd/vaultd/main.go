@@ -1,24 +1,24 @@
 package main
 
 import (
-	"flag"
 	"TaskManager/src/vault"
-	consulsd "github.com/go-kit/kit/sd/consul"
-	stdopentracing "github.com/opentracing/opentracing-go"
-	"os"
+	"context"
+	"flag"
 	"fmt"
 	"github.com/go-kit/kit/log"
+	consulsd "github.com/go-kit/kit/sd/consul"
 	"github.com/hashicorp/consul/api"
-	"context"
+	stdopentracing "github.com/opentracing/opentracing-go"
+	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
-	"net/http"
 )
 
 func main() {
 	var (
-		httpAddr     = flag.String("http.addr", ":8000", "Address for HTTP (JSON) server")
-		consulAddr   = flag.String("consul.addr", "", "Consul agent address")
+		vaultHttpPort = flag.String("http.addr", ":8000", "Address for HTTP (JSON) server")
+		consulAddr    = flag.String("consul.addr", "", "Consul agent address")
 	)
 	flag.Parse()
 
@@ -43,16 +43,17 @@ func main() {
 		client = consulsd.NewClient(consulClient)
 	}
 
-	var service = vault.NewVaultService()
-	var tracer = stdopentracing.GlobalTracer()
-	register := vault.Register("localhost", *httpAddr,"vaultsvc", client, logger)
+	service := vault.NewVaultService()
+	//Just try different way
+	service = vault.LoggingMiddleware(logger)(service)
+
+	tracer := stdopentracing.GlobalTracer()
+	register := vault.Register("localhost", *vaultHttpPort,"vaultsvc", client, logger)
 
 	ctx := context.Background()
-	//r := mux.NewRouter()
-
 
 	endpoints := vault.NewEndpoints(service, logger, tracer)
-	r := vault.MakeHttpHandler(ctx, endpoints, logger)
+	r := vault.MakeVaultHttpHandler(ctx, endpoints, logger)
 
 
 	// Interrupt handler.
@@ -67,12 +68,11 @@ func main() {
 	// HTTP transport.
 	go func() {
 		register.Register()
-		logger.Log("transport", "HTTP", "addr", *httpAddr)
-		errc <- http.ListenAndServe(*httpAddr, r)
+		logger.Log("transport", "HTTP", "addr", *vaultHttpPort)
+		errc <- http.ListenAndServe(*vaultHttpPort, r)
 	}()
 
 
 	logger.Log("exit", <-errc)
 	register.Deregister()
 }
-
