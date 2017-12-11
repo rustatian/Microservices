@@ -31,11 +31,9 @@ func main() {
 	}
 
 	svc := vault.NewVaultService()
-	//Just try different way
-	//svc = vault.LoggingMiddleware(logger)(svc)
 
 	tracer := stdopentracing.GlobalTracer()
-	reg := vault.Register(*consulAddr, *consulPort, *vaultAddr,*vaultPort, "vaultsvc", logger)
+	reg := vault.Register(*consulAddr, *consulPort, *vaultAddr,*vaultPort, logger)
 
 
 	endpoints := vault.NewEndpoints(svc, logger, tracer)

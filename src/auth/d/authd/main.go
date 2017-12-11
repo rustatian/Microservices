@@ -16,12 +16,11 @@ import (
 )
 
 func main() {
-	// parse variable from input command
 	var (
 		consulAddr = flag.String("consul.addr", "localhost", "consul address")
 		consulPort = flag.String("consul.port", ":8500", "consul port")
-		authAddr   = flag.String("advertise.addr", "localhost", "advertise address")
-		authPort   = flag.String("advertise.port", ":10001", "advertise port")
+		authAddr   = flag.String("auth.addr", "localhost", "auth address")
+		authPort   = flag.String("auth.port", ":10001", "auth port")
 	)
 	flag.Parse()
 	ctx := context.Background()
@@ -33,24 +32,23 @@ func main() {
 		logger = log.With(logger, "caller", log.DefaultCaller)
 	}
 
-	//var svc auth.Service
+
 	svc := auth.NewAuthService()
 	tracer := stdopentracing.GlobalTracer()
 
-	//svc = auth.LoggingMiddleware(logger)(svc)
 
 	endpoints := auth.NewEndpoints(svc, logger, tracer)
-	//endpoints2 := auth.JwtEndpoint(*consulAddr, *consulPort, logger)
 
-	endpoint := auth.Endpoints{
-		AuthEndpoint:   endpoints.AuthEndpoint,
+	endpoint := auth.Endpoints {
+		LoginEndpoint: endpoints.LoginEndpoint,
+		LogoutEnpoint: endpoints.LogoutEnpoint,
 		HealthEndpoint: endpoints.HealthEndpoint,
 	}
 
 	r := auth.MakeAuthHttpHandler(ctx, endpoint, logger)
 
 	// Register Service to Consul
-	reg := auth.Register(*consulAddr, *consulPort, *authAddr, *authPort, "authsvc", logger)
+	reg := auth.Register(*consulAddr, *consulPort, *authAddr, *authPort, logger)
 
 	errChan := make(chan error)
 	// HTTP transport
@@ -65,9 +63,9 @@ func main() {
 	go func() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		errChan <- fmt.Errorf("%s", <-c)
+		errChan <- fmt.Errorf("%s", <- c)
 	}()
-	chErr := <-errChan
+	chErr := <- errChan
 
 	reg.Deregister()
 	ilog.Fatalln(chErr)
