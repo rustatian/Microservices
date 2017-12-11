@@ -11,8 +11,7 @@ import (
 	"time"
 )
 
-func Register(consulAddr, consulPort, authAddress, authPort, serviceName string, logger log.Logger) (registar sd.Registrar) {
-
+func Register(consulAddr, consulPort, authAddress, authPort string, logger log.Logger) (registrar sd.Registrar) {
 	var client consulsd.Client
 	{
 		consulConfig := api.DefaultConfig()
@@ -27,14 +26,13 @@ func Register(consulAddr, consulPort, authAddress, authPort, serviceName string,
 		client = consulsd.NewClient(consulClient)
 	}
 
-	//client := consulsd.NewClient(ConsulClient(consulAddress, consulPort, logger))
 	rand.Seed(time.Now().UTC().UnixNano())
 	check := api.AgentServiceCheck{
-		HTTP:     "http://" + authAddress + authPort + "/" + serviceName + "/" + "health",
+		HTTP:     "http://" + authAddress + authPort + "/" + "health",
 		Interval: "10s",
 		Timeout:  "1s",
 		Notes:    "Basic health checks",
-		DockerContainerID: "eced4d59afd5085f61f017f874130bfec111fb4af172ca48904ed404317c36c0",
+		//DockerContainerID: "eced4d59afd5085f61f017f874130bfec111fb4af172ca48904ed404317c36c0",
 
 	}
 
@@ -48,7 +46,7 @@ func Register(consulAddr, consulPort, authAddress, authPort, serviceName string,
 		Tags:    []string{"auth", "Adexin"},
 		Check:   &check,
 	}
-	registar = consulsd.NewRegistrar(client, &asr, logger)
+	registrar = consulsd.NewRegistrar(client, &asr, logger)
 	return
 }
 

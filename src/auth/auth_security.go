@@ -6,7 +6,6 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
 	"github.com/leonelquinteros/gorand"
-	"strings"
 	"time"
 )
 
@@ -15,35 +14,66 @@ var (
 	method = jwt.SigningMethodHS256
 )
 
-func JwtEndpoint(consulAddress string, consulPort string, log log.Logger) endpoint.Middleware {
-	return func(next endpoint.Endpoint) endpoint.Endpoint {
+//func JwtEndpoint(log log.Logger) endpoint.Middleware {
+//	return func(next endpoint.Endpoint) endpoint.Endpoint {
+//		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+//			req := request.(LoginRequest)
+//			response, err = next(ctx, request)
+//
+//			if err != nil {
+//				return nil, err
+//			}
+//
+//			//TODO remove consul
+//			resp := response.(AuthResponse)
+//			if strings.EqualFold("login", req.Type) {
+//				err = loginHandler(req.Username, &resp, log)
+//			} else if strings.EqualFold("logout", req.Type) {
+//				println("logout")
+//				err = logoutHandler(req, &resp, log)
+//			}
+//
+//			return resp, err
+//		}
+//	}
+//}
+
+func JwtLoginEndpoint(log log.Logger) endpoint.Middleware {
+	return func(i endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-			req := request.(AuthRequest)
-			response, err = next(ctx, request)
+			req := request.(LoginRequest)
+			response, err = i(ctx, req)
 
 			if err != nil {
 				return nil, err
 			}
 
-			//TODO remove consul
-			resp := response.(AuthResponse)
-			if strings.EqualFold("login", req.Type) {
-				err = loginHandler(consulAddress, consulPort, req.Username, &resp, log)
-			} else if strings.EqualFold("logout", req.Type) {
-				println("logout")
-				err = logoutHandler(consulAddress, consulPort, req, &resp, log)
-			}
-
+			resp := response.(LoginResponce)
+			err = loginHandler(req.Username, &resp, log)
 			return resp, err
 		}
 	}
 }
-//create jwt keyFunc to retrieve kid
-//func keyFunc(token *jwt.Token) (interface{}, error) {
-//	return key, nil
-//}
-// handling login
-func loginHandler(consulAddress string, consulPort string, username string, resp *AuthResponse, log log.Logger) error {
+
+func JwtLogoutEndpoint(log log.Logger) endpoint.Middleware {
+	return func(i endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+			//req := request.(Logou)
+			//response, err = i(ctx, req)
+			//
+			//if err != nil {
+			//	return nil, err
+			//}
+			//
+			//resp := response.(LoginResponce)
+			//err = logoutHandler(req.Username, &resp, log)
+			return "", err
+		}
+	}
+}
+
+//TODO insert token into db
+func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 	var (
 		cid string
 		tokenString string
@@ -117,7 +147,7 @@ func loginHandler(consulAddress string, consulPort string, username string, resp
 
 //TODO create logout with database
 // handling logout
-func logoutHandler(consulAddress string, consulPort string, req AuthRequest, resp *AuthResponse, log log.Logger) error {
+func logoutHandler(/*req AuthRequest, resp *AuthResponse,*/ log log.Logger) error {
 
 	//var (
 	//	username string

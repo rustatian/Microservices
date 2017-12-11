@@ -20,14 +20,14 @@ func MakeVaultHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logg
 		httptransport.ServerErrorEncoder(encodeError),
 	}
 
-	r.Methods("POST").Path("/vaultsvc/hash").Handler(httptransport.NewServer(
+	r.Methods("POST").Path("/hash").Handler(httptransport.NewServer(
 		endpoint.HashEnpoint,
 		DecodeHashRequest,
 		EncodeResponce,
 		append(options, httptransport.ServerBefore(jwt.HTTPToContext()))...,
 	))
 
-	r.Methods("POST").Path("/vaultsvc/validate").Handler(httptransport.NewServer(
+	r.Methods("POST").Path("/validate").Handler(httptransport.NewServer(
 		endpoint.ValidateEndpoint,
 		DecodeValidateRequest,
 		EncodeResponce,
@@ -35,7 +35,7 @@ func MakeVaultHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logg
 	))
 
 	//GET /health
-	r.Methods("GET").Path("/vaultsvc/health").Handler(httptransport.NewServer(
+	r.Methods("GET").Path("/health").Handler(httptransport.NewServer(
 		endpoint.VaultHealtEndpoint,
 		DecodeHealthRequest,
 		EncodeResponce,

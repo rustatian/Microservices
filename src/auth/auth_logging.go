@@ -20,8 +20,7 @@ func LoggingMiddleware(logger log.Logger) endpoint.Middleware {
 	}
 }
 
-// Make a new type and wrap into Service interface
-// Add logger property to this type
+
 type loggingMiddleware struct {
 	Service
 	logger log.Logger

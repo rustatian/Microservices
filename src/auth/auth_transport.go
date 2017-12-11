@@ -21,26 +21,75 @@ func MakeAuthHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logge
 		httptransport.ServerErrorEncoder(encodeError),
 	}
 
-	r.Methods("POST").Path("/authsvc/auth/{type}").Handler(httptransport.NewServer(
-		endpoint.AuthEndpoint,
-		decodeAuthRequest,
+	//auth login
+	r.Methods("POST").Path("/auth/login").Handler(httptransport.NewServer(
+		endpoint.LoginEndpoint,
+		decodeLoginRequest,
+		encodeResponse,
+		options...,
+	))
+
+	//auth logout
+	r.Methods("POST").Path("/auth/logout").Handler(httptransport.NewServer(
+		endpoint.LogoutEnpoint,
+		decodeLogoutRequest,
 		encodeResponse,
 		options...,
 	))
 
 	//GET /health
-	r.Methods("GET").Path("/authsvc/health").Handler(httptransport.NewServer(
+	r.Methods("GET").Path("/health").Handler(httptransport.NewServer(
 		endpoint.HealthEndpoint,
 		decodeHealthRequest,
 		encodeResponse,
 		options...,
 	))
-
 	return r
-
 }
 
-// encode error
+func decodeLoginRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	var req LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
+
+	val := r.Header.Get("Authorization")
+	loginHeaderParts := strings.Split(val, " ")
+
+	//Check if there is - bearer wqeorij384u2-384u9
+	if len(loginHeaderParts) == 2 && strings.ToLower(loginHeaderParts[0]) == "bearer" {
+		req.TokenString = loginHeaderParts[1]
+	}
+	return req, nil
+}
+
+func decodeLogoutRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	return "", nil
+}
+
+func decodeHealthRequest(_ context.Context, _ *http.Request) (interface{}, error) {
+	return HealthRequest{}, nil
+}
+
+
+func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	type err interface {
+		error() error
+	}
+
+	if e, ok := response.(err); ok && e.error() != nil {
+		encodeError(ctx, e.error(), w)
+		return nil
+	}
+
+	if authResp, ok := response.(LoginResponce); ok {
+		w.Header().Set("X-TOKEN-GEN", authResp.TokenString)
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	return json.NewEncoder(w).Encode(response)
+}
+
 func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	if err == nil {
 		panic("encodeError with nil error")
@@ -60,55 +109,29 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 
 
 
+//func decodeAuthRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+//	vars := mux.Vars(r)
+//	requestType, ok := vars["type"]
+//	if !ok {
+//		return nil, ErrBadRouting
+//	}
+//
+//	var request AuthRequest
+//	if strings.EqualFold("login", requestType) {
+//		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+//			return nil, err
+//		}
+//	}
+//	request.Type = requestType
+//
+//	//get token from header
+//	val := r.Header.Get("Authorization")
+//	authHeaderParts := strings.Split(val, " ")
+//	//Check if there is - bearer wqeorij384u2-384u9
+//	if len(authHeaderParts) == 2 && strings.ToLower(authHeaderParts[0]) == "bearer" {
+//		request.TokenString = authHeaderParts[1]
+//	}
+//
+//	return request, nil
+//}
 
-// decode auth request
-func decodeAuthRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	vars := mux.Vars(r)
-	requestType, ok := vars["type"]
-	if !ok {
-		return nil, ErrBadRouting
-	}
-
-	var request AuthRequest
-	if strings.EqualFold("login", requestType) {
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			return nil, err
-		}
-	}
-	request.Type = requestType
-
-	//get token from header
-	val := r.Header.Get("Authorization")
-	authHeaderParts := strings.Split(val, " ")
-	//Check if there is - bearer wqeorij384u2-384u9
-	if len(authHeaderParts) == 2 && strings.ToLower(authHeaderParts[0]) == "bearer" {
-		request.TokenString = authHeaderParts[1]
-	}
-
-	return request, nil
-}
-
-// encodeResponse is the common method to encode all response types to the
-// client.
-func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	type err interface {
-		error() error
-	}
-
-	if e, ok := response.(err); ok && e.error() != nil {
-		encodeError(ctx, e.error(), w)
-		return nil
-	}
-
-	if authResp, ok := response.(AuthResponse); ok {
-		w.Header().Set("X-TOKEN-GEN", authResp.TokenString)
-	}
-
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	return json.NewEncoder(w).Encode(response)
-}
-
-
-func decodeHealthRequest(_ context.Context, _ *http.Request) (interface{}, error) {
-	return HealthRequest{}, nil
-}

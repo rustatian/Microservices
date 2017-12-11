@@ -148,7 +148,7 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 		hashEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(hashEndpoint)
 		hashEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(hashEndpoint)
 		hashEndpoint = opentracing.TraceServer(trace, "hash")(hashEndpoint)
-		hashEndpoint = LoggingMiddlware(log.With(logger,"method", "hash"))(hashEndpoint)
+		hashEndpoint = LoggingMiddleware(log.With(logger,"method", "hash"))(hashEndpoint)
 	}
 	var validateEndpoint endpoint.Endpoint
 	{
@@ -157,7 +157,7 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 		validateEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(validateEndpoint)
 		validateEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(validateEndpoint)
 		validateEndpoint = opentracing.TraceServer(trace, "validate")(validateEndpoint)
-		validateEndpoint = LoggingMiddlware(log.With(logger,"method", "validate"))(validateEndpoint)
+		validateEndpoint = LoggingMiddleware(log.With(logger,"method", "validate"))(validateEndpoint)
 	}
 	var healthEndpoint endpoint.Endpoint
 	{
@@ -165,7 +165,7 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 		healthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(healthEndpoint)
 		healthEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(healthEndpoint)
 		healthEndpoint = opentracing.TraceServer(trace, "health")(healthEndpoint)
-		healthEndpoint = LoggingMiddlware(log.With(logger,"method", "health"))(healthEndpoint)
+		healthEndpoint = LoggingMiddleware(log.With(logger,"method", "health"))(healthEndpoint)
 	}
 
 	return Endpoints{

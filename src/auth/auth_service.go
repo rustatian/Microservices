@@ -8,11 +8,9 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/ratelimit"
 	"github.com/go-kit/kit/tracing/opentracing"
-	"github.com/kr/pretty"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	"github.com/sony/gobreaker"
 	"golang.org/x/time/rate"
-	"strings"
 	"time"
 )
 
@@ -28,20 +26,12 @@ func NewAuthService() Service {
 
 type newService struct {}
 
-type ServiceMiddleware func(service Service) Service
-
-
 var InvalidLoginErr = errors.New("username or password does not match, authentication failed")
-var ErrRequestTypeNotFound = errors.New("request type only valid for login and logout")
 
 //TODO check token in database
 func (newService) Login(username, password string) (mesg string, roles []string, err error) {
-	if strings.EqualFold("admin", username) &&
-		strings.EqualFold("password", password) {
-			mesg, roles, err = "Login succeed", []string{"Admin", "User"}, nil
-	} else {
-		mesg, roles, err = "", nil, InvalidLoginErr
-	}
+	mesg, roles, err = "Login succeed", []string{"Admin", "User"}, nil
+	//mesg, roles, err = "", nil, InvalidLoginErr
 	return
 }
 
@@ -50,47 +40,95 @@ func (newService) Logout() string {
 	return "Logout Succeed"
 }
 
+//TODO check username
+func (newService) ValidateUsername() bool {
+  return true
+}
+
 func (newService) AuthHealtCheck() bool {
 	return true
 }
 
-type CommonReqResp struct{
+//type CommonReqResp struct{
+//	TokenString string `json:"-"`
+//}
+//type AuthRequest struct {
+//	CommonReqResp
+//	Username string `json:"username"`
+//	Password string `json:"password"`
+//	Type     string `json:"-"`
+//}
+//type AuthResponse struct {
+//	CommonReqResp
+//	Roles []string `json:"roles,omitempty"`
+//	Mesg string `json:"mesg"`
+//	Err     error `json:"err,omitempty"`
+//}
 
-	TokenString string `json:"-"`
-}
-
-//request
-type AuthRequest struct {
-	CommonReqResp
+type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
-	Type     string `json:"-"`
+	TokenString string `json:"token_string"`
 }
 
-//response
-type AuthResponse struct {
-	CommonReqResp
-	Roles []string `json:"roles,omitempty"`
+type LoginResponce struct {
+	Roles []string `json:"roles, omitempty"`
 	Mesg string `json:"mesg"`
-	Err     error `json:"err,omitempty"`
+	TokenString string `json:"token_string"`
+	Err string `json:"err, omitempty"`
 }
 
-//Health Request
+type LogoutRequest struct {
+	Email string `json:"email"`
+}
+
+type LogoutResponce struct {
+	Status bool `json:"status"`
+}
+
 type HealthRequest struct {
 
 }
 
-//Health Response
 type HealthResponse struct {
 	Status bool `json:"status"`
 }
 
 // endpoints wrapper
 type Endpoints struct {
-	AuthEndpoint endpoint.Endpoint
+	LoginEndpoint endpoint.Endpoint
+	LogoutEnpoint endpoint.Endpoint
 	HealthEndpoint endpoint.Endpoint
 }
 
+
+
+//func MakeLoginEndpoint(svc Service) endpoint.Endpoint {
+//	return func(ctx context.Context, request interface{}) (interface{}, error) {
+//		var (
+//			roles []string
+//			mesg string
+//			err error
+//			)
+//		req := request.(AuthRequest)
+//		pretty.Print("ctx")
+//
+//		if strings.EqualFold(req.Type, "login") {
+//			mesg, roles, err = svc.Login(req.Username, req.Password)
+//		} else if strings.EqualFold(req.Type, "logout") {
+//			mesg = svc.Logout()
+//			err = nil
+//		} else {
+//			return nil, ErrRequestTypeNotFound
+//		}
+//
+//		// check if err is not null
+//		if err != nil {
+//			return nil, err
+//		}
+//		return AuthResponse{Mesg:mesg, Roles: roles, Err: err}, nil
+//	}
+//}
 
 
 func MakeLoginEndpoint(svc Service) endpoint.Endpoint {
@@ -100,26 +138,25 @@ func MakeLoginEndpoint(svc Service) endpoint.Endpoint {
 			mesg string
 			err error
 		)
-		req := request.(AuthRequest)
-		pretty.Print("ctx")
-		if strings.EqualFold(req.Type, "login") {
-			mesg, roles, err = svc.Login(req.Username, req.Password)
-		} else if strings.EqualFold(req.Type, "logout") {
-			mesg = svc.Logout()
-			err = nil
-		} else {
-			return nil, ErrRequestTypeNotFound
-		}
 
-		// check if err is not null
+		req := request.(LoginRequest)
+		mesg, roles, err = svc.Login(req.Username, req.Password)
+
 		if err != nil {
 			return nil, err
 		}
-		return AuthResponse{Mesg:mesg, Roles: roles, Err: err}, nil
+		return LoginResponce { Mesg:mesg, Roles: roles, Err: "" }, nil
 	}
 }
 
-// creating health endpoint
+func MakeLogoutEndpoint(svc Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		//req := request.(AuthRequest)
+		svc.Logout()
+		return "", nil
+	}
+}
+
 func MakeHealthEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		status := svc.AuthHealtCheck()
@@ -131,11 +168,21 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 	var loginEndpoint endpoint.Endpoint
 	{
 		loginEndpoint = MakeLoginEndpoint(svc)
-		loginEndpoint = JwtEndpoint("localhost","8500",logger)(loginEndpoint)
+		loginEndpoint = JwtLoginEndpoint(logger)(loginEndpoint)
 		loginEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(loginEndpoint)
 		loginEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(loginEndpoint)
 		loginEndpoint = opentracing.TraceServer(trace, "login")(loginEndpoint)
 		loginEndpoint = LoggingMiddleware(log.With(logger, "method","login"))(loginEndpoint)
+	}
+
+	var logoutEndpoint endpoint.Endpoint
+	{
+		logoutEndpoint = MakeLogoutEndpoint(svc)
+		logoutEndpoint = JwtLogoutEndpoint(logger)(logoutEndpoint)
+		logoutEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(logoutEndpoint)
+		logoutEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(logoutEndpoint)
+		logoutEndpoint = opentracing.TraceServer(trace, "logout")(logoutEndpoint)
+		logoutEndpoint = LoggingMiddleware(log.With(logger, "method","logout"))(logoutEndpoint)
 	}
 
 	var healthEndpoint endpoint.Endpoint
@@ -149,7 +196,8 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 	}
 
 	return Endpoints{
-		AuthEndpoint: loginEndpoint,
+		LoginEndpoint: loginEndpoint,
+		LogoutEnpoint: logoutEndpoint,
 		HealthEndpoint: healthEndpoint,
 	}
 }
