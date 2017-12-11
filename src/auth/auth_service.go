@@ -3,13 +3,16 @@ package auth
 import (
 	"context"
 	"errors"
+	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
+	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/ratelimit"
+	"github.com/go-kit/kit/tracing/opentracing"
 	"github.com/kr/pretty"
-	"golang.org/x/time/rate"
-	"log"
-	"strings"
 	stdopentracing "github.com/opentracing/opentracing-go"
+	"github.com/sony/gobreaker"
+	"golang.org/x/time/rate"
+	"strings"
 	"time"
 )
 
@@ -97,7 +100,6 @@ func MakeLoginEndpoint(svc Service) endpoint.Endpoint {
 			mesg string
 			err error
 		)
-
 		req := request.(AuthRequest)
 		pretty.Print("ctx")
 		if strings.EqualFold(req.Type, "login") {
@@ -129,11 +131,20 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 	var loginEndpoint endpoint.Endpoint
 	{
 		loginEndpoint = MakeLoginEndpoint(svc)
+		loginEndpoint = JwtEndpoint("localhost","8500",logger)(loginEndpoint)
 		loginEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(loginEndpoint)
+		loginEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(loginEndpoint)
+		loginEndpoint = opentracing.TraceServer(trace, "login")(loginEndpoint)
+		loginEndpoint = LoggingMiddleware(log.With(logger, "method","login"))(loginEndpoint)
 	}
 
 	var healthEndpoint endpoint.Endpoint
 	{
+		healthEndpoint = MakeHealthEndpoint(svc)
+		healthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(healthEndpoint)
+		healthEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(healthEndpoint)
+		healthEndpoint = opentracing.TraceServer(trace, "health")(healthEndpoint)
+		healthEndpoint = LoggingMiddleware(log.With(logger, "method","health"))(healthEndpoint)
 
 	}
 

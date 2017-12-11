@@ -25,14 +25,13 @@ func JwtEndpoint(consulAddress string, consulPort string, log log.Logger) endpoi
 				return nil, err
 			}
 
+			//TODO remove consul
 			resp := response.(AuthResponse)
 			if strings.EqualFold("login", req.Type) {
-				err = loginHandler(consulAddress, consulPort,
-					req.Username, &resp, log)
+				err = loginHandler(consulAddress, consulPort, req.Username, &resp, log)
 			} else if strings.EqualFold("logout", req.Type) {
 				println("logout")
-				err = logoutHandler(consulAddress, consulPort,
-					req, &resp, log)
+				err = logoutHandler(consulAddress, consulPort, req, &resp, log)
 			}
 
 			return resp, err

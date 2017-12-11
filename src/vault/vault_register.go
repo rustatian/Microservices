@@ -1,15 +1,19 @@
 package vault
 
 import (
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/sd"
 	consulsd "github.com/go-kit/kit/sd/consul"
 	"github.com/hashicorp/consul/api"
-	"strconv"
 	"math/rand"
-	"github.com/go-kit/kit/sd"
-	"github.com/go-kit/kit/log"
+	"os"
+	"strconv"
 )
 
-func Register(vaultAddress, vaultPort, serviceName string, client consulsd.Client, logger log.Logger) (registar sd.Registrar) {
+func Register(consulAddr, consulPort, vaultAddress, vaultPort, serviceName string, logger log.Logger) (registar sd.Registrar) {
+
+	var client = consClient(logger, consulAddr, consulPort)
+
 	check := api.AgentServiceCheck{
 		HTTP:     "http://" + vaultAddress + vaultPort + "/" + serviceName + "/" + "health",
 		Interval: "10s",
@@ -29,4 +33,21 @@ func Register(vaultAddress, vaultPort, serviceName string, client consulsd.Clien
 	}
 
 	return consulsd.NewRegistrar(client, &asr, logger)
+}
+
+func consClient(logger log.Logger, consulAddr, consulPort string) consulsd.Client{
+	var client consulsd.Client
+	{
+		consulConfig := api.DefaultConfig()
+		if len(consulAddr) > 0 {
+			consulConfig.Address = consulAddr + consulPort
+		}
+		consulClient, err := api.NewClient(consulConfig)
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
+		client = consulsd.NewClient(consulClient)
+	}
+	return client
 }

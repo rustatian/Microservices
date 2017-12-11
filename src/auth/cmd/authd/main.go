@@ -5,28 +5,27 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/go-kit/kit/log"
+	stdopentracing "github.com/opentracing/opentracing-go"
 	ilog "log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/go-kit/kit/log"
 )
 
 func main() {
 	// parse variable from input command
 	var (
 		consulAddr = flag.String("consul.addr", "localhost", "consul address")
-		consulPort = flag.String("consul.port", "8500", "consul port")
-		advertiseAddr = flag.String("advertise.addr", "localhost", "advertise address")
-		advertisePort = flag.String("advertise.port", "3000", "advertise port")
+		consulPort = flag.String("consul.port", ":8500", "consul port")
+		authAddr   = flag.String("advertise.addr", "localhost", "advertise address")
+		authPort   = flag.String("advertise.port", ":10001", "advertise port")
 	)
 	flag.Parse()
-
 	ctx := context.Background()
-	errChan := make(chan error)
 
-	// Logging domain.
 	var logger log.Logger
 	{
 		logger = log.NewLogfmtLogger(os.Stdout)
@@ -36,42 +35,40 @@ func main() {
 
 	//var svc auth.Service
 	svc := auth.NewAuthService()
-	svc = auth.LoggingMiddleware(logger)(svc)
+	tracer := stdopentracing.GlobalTracer()
 
-	e := auth.MakeLoginEndpoint(svc)
-	e = auth.JwtEndpoint(*consulAddr, *consulPort, logger)(e)
+	//svc = auth.LoggingMiddleware(logger)(svc)
+
+	endpoints := auth.NewEndpoints(svc, logger, tracer)
+	//endpoints2 := auth.JwtEndpoint(*consulAddr, *consulPort, logger)
 
 	endpoint := auth.Endpoints{
-		AuthEndpoint: e,
-		HealthEndpoint: auth.MakeHealthEndpoint(svc),
+		AuthEndpoint:   endpoints.AuthEndpoint,
+		HealthEndpoint: endpoints.HealthEndpoint,
 	}
 
-	r := auth.MakeHttpHandler(ctx, endpoint, logger)
+	r := auth.MakeAuthHttpHandler(ctx, endpoint, logger)
 
 	// Register Service to Consul
-	registar := auth.Register(*consulAddr,
-		*consulPort,
-		*advertiseAddr,
-		*advertisePort)
+	reg := auth.Register(*consulAddr, *consulPort, *authAddr, *authPort, "authsvc", logger)
 
+	errChan := make(chan error)
 	// HTTP transport
 	go func() {
-		ilog.Println("Starting server at port", *advertisePort)
+		ilog.Println("Starting server at port", *authPort)
 		// register service
-		registar.Register()
+		reg.Register()
 		handler := r
-		errChan <- http.ListenAndServe( ":" + *advertisePort, handler)
+		errChan <- http.ListenAndServe(*authPort, handler)
 	}()
-
 
 	go func() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		errChan <- fmt.Errorf("%s", <-c)
 	}()
-	chErr := <- errChan
+	chErr := <-errChan
 
-
-	registar.Deregister()
+	reg.Deregister()
 	ilog.Fatalln(chErr)
 }

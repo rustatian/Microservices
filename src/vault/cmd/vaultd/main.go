@@ -6,8 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-kit/kit/log"
-	consulsd "github.com/go-kit/kit/sd/consul"
-	"github.com/hashicorp/consul/api"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	"net/http"
 	"os"
@@ -17,10 +15,13 @@ import (
 
 func main() {
 	var (
-		vaultHttpPort = flag.String("http.addr", ":8000", "Address for HTTP (JSON) server")
-		consulAddr    = flag.String("consul.addr", "", "Consul agent address")
-	)
+		consulAddr = flag.String("consul.addr", "localhost", "consul address")
+		consulPort = flag.String("consul.port", ":8500", "consul port")
+		vaultAddr = flag.String("vault.addr", "localhost", "advertise address")
+		vaultPort = flag.String("vault.port", ":10000", "advertise port")
+		)
 	flag.Parse()
+	ctx := context.Background()
 
 	var logger log.Logger
 	{
@@ -29,30 +30,15 @@ func main() {
 		logger = log.With(logger, "caller", log.DefaultCaller)
 	}
 
-	var client consulsd.Client
-	{
-		consulConfig := api.DefaultConfig()
-		if len(*consulAddr) > 0 {
-			consulConfig.Address = *consulAddr
-		}
-		consulClient, err := api.NewClient(consulConfig)
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
-		client = consulsd.NewClient(consulClient)
-	}
-
-	service := vault.NewVaultService()
+	svc := vault.NewVaultService()
 	//Just try different way
-	service = vault.LoggingMiddleware(logger)(service)
+	//svc = vault.LoggingMiddleware(logger)(svc)
 
 	tracer := stdopentracing.GlobalTracer()
-	register := vault.Register("localhost", *vaultHttpPort,"vaultsvc", client, logger)
+	reg := vault.Register(*consulAddr, *consulPort, *vaultAddr,*vaultPort, "vaultsvc", logger)
 
-	ctx := context.Background()
 
-	endpoints := vault.NewEndpoints(service, logger, tracer)
+	endpoints := vault.NewEndpoints(svc, logger, tracer)
 	r := vault.MakeVaultHttpHandler(ctx, endpoints, logger)
 
 
@@ -67,12 +53,12 @@ func main() {
 
 	// HTTP transport.
 	go func() {
-		register.Register()
-		logger.Log("transport", "HTTP", "addr", *vaultHttpPort)
-		errc <- http.ListenAndServe(*vaultHttpPort, r)
+		reg.Register()
+		logger.Log("transport", "HTTP", "addr", *vaultPort)
+		errc <- http.ListenAndServe(*vaultPort, r)
 	}()
 
 
 	logger.Log("exit", <-errc)
-	register.Deregister()
+	reg.Deregister()
 }

@@ -1,15 +1,22 @@
 package auth
 
 import (
+	"context"
+	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
 	"strings"
 	"time"
 )
 
 // implement function to return ServiceMiddleware
-func LoggingMiddleware(logger log.Logger) ServiceMiddleware {
-	return func(next Service) Service {
-		return loggingMiddleware{next, logger}
+func LoggingMiddleware(logger log.Logger) endpoint.Middleware {
+	return func(i endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+			defer func(begin time.Time) {
+				logger.Log("transport_error", err, "took", time.Since(begin))
+			}(time.Now())
+			return i(ctx, request)
+		}
 	}
 }
 

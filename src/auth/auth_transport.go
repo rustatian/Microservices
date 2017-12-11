@@ -14,14 +14,14 @@ import (
 var ErrBadRouting = errors.New("inconsistent mapping between route and handler (programmer error)")
 
 // Make Http Handler
-func MakeHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logger) http.Handler {
+func MakeAuthHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logger) http.Handler {
 	r := mux.NewRouter()
 	options := []httptransport.ServerOption{
 		httptransport.ServerErrorLogger(logger),
 		httptransport.ServerErrorEncoder(encodeError),
 	}
 
-	r.Methods("POST").Path("/auth/{type}").Handler(httptransport.NewServer(
+	r.Methods("POST").Path("/authsvc/auth/{type}").Handler(httptransport.NewServer(
 		endpoint.AuthEndpoint,
 		decodeAuthRequest,
 		encodeResponse,
@@ -29,7 +29,7 @@ func MakeHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logger) h
 	))
 
 	//GET /health
-	r.Methods("GET").Path("/health").Handler(httptransport.NewServer(
+	r.Methods("GET").Path("/authsvc/health").Handler(httptransport.NewServer(
 		endpoint.HealthEndpoint,
 		decodeHealthRequest,
 		encodeResponse,
@@ -63,7 +63,6 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 
 // decode auth request
 func decodeAuthRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-
 	vars := mux.Vars(r)
 	requestType, ok := vars["type"]
 	if !ok {

@@ -50,11 +50,8 @@ type validateResponse struct {
 	Err string `json:"err, omitempty"`
 }
 
-
-type healthRequest struct {
-	//TODO Create health logic, check free memory, disk space
-
-}
+//TODO Create health logic, check free memory, disk space
+type healthRequest struct {}
 
 type healthResponse struct {
 	Status bool `json:"status"`
@@ -133,7 +130,7 @@ func MakeValidateEndpoint(svc Service) endpoint.Endpoint {
 		return validateResponse{Valid: v, Err: ""}, nil
 	}
 }
-
+//TODO correct health request
 func MakeHealtEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		//req := request.(healthRequest)
