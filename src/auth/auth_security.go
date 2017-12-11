@@ -10,6 +10,7 @@ import (
 )
 
 var (
+	//TODO Temporary key, replace with key from config file
 	key = []byte("%kxkstXG%@uEG4^fj_gt8*XK?tzG@ddY#+wAd")
 	method = jwt.SigningMethodHS256
 )
