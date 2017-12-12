@@ -3,8 +3,16 @@ package registration
 import (
 	"context"
 	"database/sql"
+	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/ratelimit"
+	"github.com/go-kit/kit/tracing/opentracing"
+	stdopentracing "github.com/opentracing/opentracing-go"
+	"github.com/sony/gobreaker"
 	"github.com/spf13/viper"
+	"golang.org/x/time/rate"
+	"time"
 )
 
 var dbCreds string
@@ -99,7 +107,7 @@ type Endpoints struct {
 }
 
 
-func(e Endpoints) MakeRegEndpoint(svc Service) endpoint.Endpoint {
+func MakeRegEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req, err := request.(RegRequest)
 		if err != nil {
@@ -114,8 +122,39 @@ func(e Endpoints) MakeRegEndpoint(svc Service) endpoint.Endpoint {
 	}
 }
 
-func NewEnpoints() endpoint.Middleware {
-	return
+//TODO implement
+func MakeUserValEndpoint(svc Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		return "", nil
+	}
+}
+
+
+
+
+func NewEnpoints(svc Service, logger log.Logger, tracer stdopentracing.Tracer) Endpoints {
+	var regEndpoint endpoint.Endpoint
+	{
+		regEndpoint = MakeRegEndpoint(svc)
+		regEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(regEndpoint)
+		regEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(regEndpoint)
+		regEndpoint = opentracing.TraceServer(tracer, "Registration")(regEndpoint)
+		regEndpoint = LoggingMiddleware(logger)(regEndpoint)
+	}
+
+	var usernameValidEndpoint endpoint.Endpoint
+	{
+		usernameValidEndpoint = MakeUserValEndpoint(svc)
+		usernameValidEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(usernameValidEndpoint)
+	}
+
+
+
+
+	return Endpoints{
+		RegEndpoint: regEndpoint,
+
+	}
 }
 
 
