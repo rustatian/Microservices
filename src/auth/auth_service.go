@@ -24,6 +24,8 @@ func NewAuthService() Service {
 	return newService{}
 }
 
+
+
 type newService struct {}
 
 var InvalidLoginErr = errors.New("username or password does not match, authentication failed")

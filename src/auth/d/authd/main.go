@@ -5,7 +5,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	stdopentracing "github.com/opentracing/opentracing-go"
 	ilog "log"
 	"net/http"
 	"os"
@@ -13,9 +12,15 @@ import (
 	"syscall"
 
 	"github.com/go-kit/kit/log"
+	stdopentracing "github.com/opentracing/opentracing-go"
 )
 
 func main() {
+
+	ab := make([]int, 5)
+	append(ab, 5)
+	fmt.Print(ab)
+
 	var (
 		consulAddr = flag.String("consul.addr", "localhost", "consul address")
 		consulPort = flag.String("consul.port", ":8500", "consul port")
@@ -32,16 +37,14 @@ func main() {
 		logger = log.With(logger, "caller", log.DefaultCaller)
 	}
 
-
 	svc := auth.NewAuthService()
 	tracer := stdopentracing.GlobalTracer()
 
-
 	endpoints := auth.NewEndpoints(svc, logger, tracer)
 
-	endpoint := auth.Endpoints {
-		LoginEndpoint: endpoints.LoginEndpoint,
-		LogoutEnpoint: endpoints.LogoutEnpoint,
+	endpoint := auth.Endpoints{
+		LoginEndpoint:  endpoints.LoginEndpoint,
+		LogoutEnpoint:  endpoints.LogoutEnpoint,
 		HealthEndpoint: endpoints.HealthEndpoint,
 	}
 
@@ -51,6 +54,7 @@ func main() {
 	reg := auth.Register(*consulAddr, *consulPort, *authAddr, *authPort, logger)
 
 	errChan := make(chan error)
+
 	// HTTP transport
 	go func() {
 		ilog.Println("Starting server at port", *authPort)
@@ -63,9 +67,9 @@ func main() {
 	go func() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		errChan <- fmt.Errorf("%s", <- c)
+		errChan <- fmt.Errorf("%s", <-c)
 	}()
-	chErr := <- errChan
+	chErr := <-errChan
 
 	reg.Deregister()
 	ilog.Fatalln(chErr)

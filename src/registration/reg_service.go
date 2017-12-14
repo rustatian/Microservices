@@ -3,6 +3,8 @@ package registration
 import (
 	"context"
 	"database/sql"
+	"time"
+
 	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
@@ -12,7 +14,6 @@ import (
 	"github.com/sony/gobreaker"
 	"github.com/spf13/viper"
 	"golang.org/x/time/rate"
-	"time"
 )
 
 var dbCreds string
@@ -37,10 +38,9 @@ func NewRegService() Service {
 	return newRegService{}
 }
 
-type newRegService struct {}
+type newRegService struct{}
 
-
-func(newRegService) Registration(username, fullname, email, passwordHash, jwtToken string, isDisabled bool) (bool, error) {
+func (newRegService) Registration(username, fullname, email, passwordHash, jwtToken string, isDisabled bool) (bool, error) {
 	db, err := sql.Open("mysql", dbCreds)
 	if err != nil {
 		return false, err
@@ -59,27 +59,26 @@ func(newRegService) Registration(username, fullname, email, passwordHash, jwtTok
 	return true, nil
 }
 
-func(newRegService) UsernameValidation() {
+func (newRegService) UsernameValidation() {
 
 }
 
-func(newRegService) EmailValidation() {
+func (newRegService) EmailValidation() {
 
 }
-
 
 type RegRequest struct {
-	Username string `json:"username"`
-	Fullname string `json:"fullname"`
-	Email string `json:"email"`
+	Username     string `json:"username"`
+	Fullname     string `json:"fullname"`
+	Email        string `json:"email"`
 	PasswordHash string `json:"password_hash"`
-	JwtToken string `json:"jwt_token"`
-	isDisabled bool `json:"is_disabled"`
+	JwtToken     string `json:"jwt_token"`
+	isDisabled   bool   `json:"is_disabled"`
 }
 
 type RegResponce struct {
-	Status bool `json:"status"`
-	Err string `json:"err, omitempty"`
+	Status bool   `json:"status"`
+	Err    string `json:"err, omitempty"`
 }
 
 type UsernameValidationRequest struct {
@@ -88,7 +87,7 @@ type UsernameValidationRequest struct {
 
 type UsernameValidationResponce struct {
 	Status string `json:"status"`
-	Err string `json:"err, omitempty"`
+	Err    string `json:"err, omitempty"`
 }
 
 type EmailValidationRequest struct {
@@ -97,15 +96,14 @@ type EmailValidationRequest struct {
 
 type EmailValidationResponce struct {
 	Status string `json:"status"`
-	Err string `json:"err, omitempty"`
+	Err    string `json:"err, omitempty"`
 }
 
 type Endpoints struct {
-	RegEndpoint endpoint.Endpoint
+	RegEndpoint           endpoint.Endpoint
 	UsernameValidEndpoint endpoint.Endpoint
-	EmailValidEndpoint endpoint.Endpoint
+	EmailValidEndpoint    endpoint.Endpoint
 }
-
 
 func MakeRegEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
@@ -114,11 +112,12 @@ func MakeRegEndpoint(svc Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		ok, err := svc.Registration(req.Username, req.Fullname, req.Email, req.PasswordHash, req.JwtToken, req.isDisabled); if !ok {
+		ok, err := svc.Registration(req.Username, req.Fullname, req.Email, req.PasswordHash, req.JwtToken, req.isDisabled)
+		if !ok {
 			return nil, err
 		}
 
-		return RegResponce{Err:"", Status: ok}, nil
+		return RegResponce{Err: "", Status: ok}, nil
 	}
 }
 
@@ -130,7 +129,11 @@ func MakeUserValEndpoint(svc Service) endpoint.Endpoint {
 }
 
 
-
+func MakeEmailValEndpoint(svc Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		return "", nil
+	}
+}
 
 func NewEnpoints(svc Service, logger log.Logger, tracer stdopentracing.Tracer) Endpoints {
 	var regEndpoint endpoint.Endpoint
@@ -146,18 +149,23 @@ func NewEnpoints(svc Service, logger log.Logger, tracer stdopentracing.Tracer) E
 	{
 		usernameValidEndpoint = MakeUserValEndpoint(svc)
 		usernameValidEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(usernameValidEndpoint)
+		usernameValidEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(usernameValidEndpoint)
+		usernameValidEndpoint = opentracing.TraceServer(tracer, "UsernameValidation")(usernameValidEndpoint)
+		usernameValidEndpoint = LoggingMiddleware(logger)(usernameValidEndpoint)
 	}
 
+	var emailValidEndpoint endpoint.Endpoint
+	{
+		emailValidEndpoint = MakeEmailValEndpoint(svc)
+		emailValidEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(emailValidEndpoint)
+		emailValidEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(emailValidEndpoint)
+		emailValidEndpoint = opentracing.TraceServer(tracer,"EmailValidation")(emailValidEndpoint)
+		emailValidEndpoint = LoggingMiddleware(logger)(emailValidEndpoint)
+	}
 
-
-
-	return Endpoints{
+	return Endpoints {
 		RegEndpoint: regEndpoint,
-
+		UsernameValidEndpoint: usernameValidEndpoint,
+		EmailValidEndpoint: emailValidEndpoint,
 	}
 }
-
-
-
-
-

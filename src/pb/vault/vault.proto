@@ -10,7 +10,6 @@ service Vault {
 
 message HashRequest {
     string password = 1;
-
 }
 
 message HashResponce {

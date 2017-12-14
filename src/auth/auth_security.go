@@ -15,6 +15,7 @@ var (
 	method = jwt.SigningMethodHS256
 )
 
+
 //func JwtEndpoint(log log.Logger) endpoint.Middleware {
 //	return func(next endpoint.Endpoint) endpoint.Endpoint {
 //		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
