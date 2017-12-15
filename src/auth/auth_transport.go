@@ -3,15 +3,12 @@ package auth
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"github.com/go-kit/kit/log"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"net/http"
 	"strings"
 )
-
-var ErrBadRouting = errors.New("inconsistent mapping between route and handler (programmer error)")
 
 // Make Http Handler
 func MakeAuthHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logger) http.Handler {
@@ -71,7 +68,6 @@ func decodeHealthRequest(_ context.Context, _ *http.Request) (interface{}, error
 	return HealthRequest{}, nil
 }
 
-
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	type err interface {
 		error() error
@@ -107,31 +103,4 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	})
 }
 
-
-
-//func decodeAuthRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-//	vars := mux.Vars(r)
-//	requestType, ok := vars["type"]
-//	if !ok {
-//		return nil, ErrBadRouting
-//	}
-//
-//	var request AuthRequest
-//	if strings.EqualFold("login", requestType) {
-//		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-//			return nil, err
-//		}
-//	}
-//	request.Type = requestType
-//
-//	//get token from header
-//	val := r.Header.Get("Authorization")
-//	authHeaderParts := strings.Split(val, " ")
-//	//Check if there is - bearer wqeorij384u2-384u9
-//	if len(authHeaderParts) == 2 && strings.ToLower(authHeaderParts[0]) == "bearer" {
-//		request.TokenString = authHeaderParts[1]
-//	}
-//
-//	return request, nil
-//}
 

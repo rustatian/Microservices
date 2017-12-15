@@ -7,38 +7,30 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/leonelquinteros/gorand"
 	"time"
+	"gopkg.in/redis.v3"
+	"encoding/json"
+	"github.com/spf13/viper"
 )
 
+var secret string
+
+func init() {
+	viper.AddConfigPath("/config")
+	viper.SetConfigFile("reg_srv_conf")
+
+	err := viper.ReadInConfig()
+	if err != nil {
+		panic(err)
+	}
+
+	secret = viper.GetString("SecretKey.Key")
+}
+
+// Signing method
 var (
-	//TODO Temporary key, replace with key from config file
-	key = []byte("%kxkstXG%@uEG4^fj_gt8*XK?tzG@ddY#+wAd")
 	method = jwt.SigningMethodHS256
 )
 
-
-//func JwtEndpoint(log log.Logger) endpoint.Middleware {
-//	return func(next endpoint.Endpoint) endpoint.Endpoint {
-//		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-//			req := request.(LoginRequest)
-//			response, err = next(ctx, request)
-//
-//			if err != nil {
-//				return nil, err
-//			}
-//
-//			//TODO remove consul
-//			resp := response.(AuthResponse)
-//			if strings.EqualFold("login", req.Type) {
-//				err = loginHandler(req.Username, &resp, log)
-//			} else if strings.EqualFold("logout", req.Type) {
-//				println("logout")
-//				err = logoutHandler(req, &resp, log)
-//			}
-//
-//			return resp, err
-//		}
-//	}
-//}
 
 func JwtLoginEndpoint(log log.Logger) endpoint.Middleware {
 	return func(i endpoint.Endpoint) endpoint.Endpoint {
@@ -93,58 +85,53 @@ func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 	if err != nil {
 		panic(err.Error())
 	}
-	cid = uuid
+
 
 	token := jwt.New(method)
 	claims := token.Claims.(jwt.MapClaims)
 
-	//m := map[string]interface{} {
-	//	"username": username,
-	//	"roles": resp.Roles,
-	//}
-	//val, _ := json.Marshal(m)
+	m := map[string]interface{} {
+		"username": username,
+		"roles": resp.Roles,
+	}
+	val, _ := json.Marshal(m)
 
 	claims["admin"] = true
+	claims["iat"] = time.Now()
+	claims["iss"] = "Valery_P"
 	claims["name"] = username
 	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
-	JsonWebToken, err := token.SignedString(key)
+	claims["jti"] = cid
+	JsonWebToken, err := token.SignedString(secret)
 	tokenString = JsonWebToken[:20] + "..."
 	if err != nil {
 
 	}
 
-	//claims.SetIssuer("ru-rocker.com")
-	//claims.SetIssuedAt(time.Now())
-	//claims.SetExpiration(time.Now().Add(time.Hour*24*30).Unix())
-	//claims.SetJWTID(cid)
-	//j := jws.NewJWT(claims, method)
-	//b, err := token.Serialize(key)
-	//if err != nil {
-	//	return err
-	//}
-	//tokenString = string(b[:])
-
 	resp.TokenString = JsonWebToken
 
-	//errChan := make(chan error)
-	////register UUID on Consul KV
-	//go func() {
-	//	client := ConsulClient(consulAddress, consulPort, log)
-	//	kv := client.KV()
-	//	key := "session/" + uuid
-	//	p := &api.KVPair{Key: key, Value: []byte(val)}
-	//	_, e := kv.Put(p, nil)
-	//	if e != nil {
-	//		errChan <- e
-	//	} else {
-	//		errChan <- nil
-	//	}
-	//}()
-	//
-	//if err = <- errChan; err != nil {
-	//	return err
-	//}
-	return nil
+	errChan := make(chan error)
+	go func() {
+		client := redis.NewClient(
+			&redis.Options{
+				Addr: "localhost:6379",
+				Password: "",
+				DB: 0,
+			})
+
+		var err2 *redis.StatusCmd = client.Set(uuid, val, time.Duration(time.Hour * 24))
+		if err2.Err() != nil {
+			errChan <- err
+		} else {
+			errChan <- nil
+		}
+	}()
+
+	if err = <- errChan; err != nil {
+		return err
+	} else {
+		return nil
+	}
 }
 
 //TODO create logout with database
