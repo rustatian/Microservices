@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
@@ -28,9 +27,7 @@ func NewAuthService() Service {
 
 type newService struct {}
 
-var InvalidLoginErr = errors.New("username or password does not match, authentication failed")
-
-//TODO check token in database
+//TODO check username and pass in database
 func (newService) Login(username, password string) (mesg string, roles []string, err error) {
 	mesg, roles, err = "Login succeed", []string{"Admin", "User"}, nil
 	//mesg, roles, err = "", nil, InvalidLoginErr
@@ -51,22 +48,6 @@ func (newService) AuthHealtCheck() bool {
 	return true
 }
 
-//type CommonReqResp struct{
-//	TokenString string `json:"-"`
-//}
-//type AuthRequest struct {
-//	CommonReqResp
-//	Username string `json:"username"`
-//	Password string `json:"password"`
-//	Type     string `json:"-"`
-//}
-//type AuthResponse struct {
-//	CommonReqResp
-//	Roles []string `json:"roles,omitempty"`
-//	Mesg string `json:"mesg"`
-//	Err     error `json:"err,omitempty"`
-//}
-
 type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -81,7 +62,8 @@ type LoginResponce struct {
 }
 
 type LogoutRequest struct {
-	Email string `json:"email"`
+	TokenString string `json:"token_string"`
+	Username string `json:"username"`
 }
 
 type LogoutResponce struct {
@@ -102,35 +84,6 @@ type Endpoints struct {
 	LogoutEnpoint endpoint.Endpoint
 	HealthEndpoint endpoint.Endpoint
 }
-
-
-
-//func MakeLoginEndpoint(svc Service) endpoint.Endpoint {
-//	return func(ctx context.Context, request interface{}) (interface{}, error) {
-//		var (
-//			roles []string
-//			mesg string
-//			err error
-//			)
-//		req := request.(AuthRequest)
-//		pretty.Print("ctx")
-//
-//		if strings.EqualFold(req.Type, "login") {
-//			mesg, roles, err = svc.Login(req.Username, req.Password)
-//		} else if strings.EqualFold(req.Type, "logout") {
-//			mesg = svc.Logout()
-//			err = nil
-//		} else {
-//			return nil, ErrRequestTypeNotFound
-//		}
-//
-//		// check if err is not null
-//		if err != nil {
-//			return nil, err
-//		}
-//		return AuthResponse{Mesg:mesg, Roles: roles, Err: err}, nil
-//	}
-//}
 
 
 func MakeLoginEndpoint(svc Service) endpoint.Endpoint {

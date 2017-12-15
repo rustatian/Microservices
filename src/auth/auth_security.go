@@ -10,13 +10,14 @@ import (
 	"gopkg.in/redis.v3"
 	"encoding/json"
 	"github.com/spf13/viper"
+	"errors"
 )
 
 var secret string
 
 func init() {
-	viper.AddConfigPath("/config")
-	viper.SetConfigFile("reg_srv_conf")
+	viper.AddConfigPath("src/auth/config")
+	viper.SetConfigName("reg_srv_conf")
 
 	err := viper.ReadInConfig()
 	if err != nil {
@@ -52,15 +53,15 @@ func JwtLoginEndpoint(log log.Logger) endpoint.Middleware {
 func JwtLogoutEndpoint(log log.Logger) endpoint.Middleware {
 	return func(i endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-			//req := request.(Logou)
-			//response, err = i(ctx, req)
-			//
-			//if err != nil {
-			//	return nil, err
-			//}
-			//
-			//resp := response.(LoginResponce)
-			//err = logoutHandler(req.Username, &resp, log)
+			req := request.(LogoutRequest)
+			response, err = i(ctx, req)
+
+			if err != nil {
+				return nil, err
+			}
+
+			resp := response.(LogoutResponce)
+			err = logoutHandler(req, &resp, log)
 			return "", err
 		}
 	}
@@ -69,14 +70,14 @@ func JwtLogoutEndpoint(log log.Logger) endpoint.Middleware {
 //TODO insert token into db
 func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 	var (
-		cid string
+		jti string
 		tokenString string
 	)
 
 	defer func(){
 		log.Log(
 			"username", username,
-			"jwtid", cid,
+			"jti", jti,
 			"token", tokenString,
 		)
 	}()
@@ -101,8 +102,8 @@ func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 	claims["iss"] = "Valery_P"
 	claims["name"] = username
 	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
-	claims["jti"] = cid
-	JsonWebToken, err := token.SignedString(secret)
+	claims["jti"] = jti
+	JsonWebToken, err := token.SignedString([]byte(secret))
 	tokenString = JsonWebToken[:20] + "..."
 	if err != nil {
 
@@ -119,13 +120,14 @@ func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 				DB: 0,
 			})
 
-		var err2 *redis.StatusCmd = client.Set(uuid, val, time.Duration(time.Hour * 24))
-		if err2.Err() != nil {
-			errChan <- err
+		var err *redis.StatusCmd = client.Set(uuid, val, time.Duration(time.Hour * 24))
+		if err != nil {
+			errChan <- err.Err()
 		} else {
 			errChan <- nil
 		}
 	}()
+
 
 	if err = <- errChan; err != nil {
 		return err
@@ -136,64 +138,62 @@ func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 
 //TODO create logout with database
 // handling logout
-func logoutHandler(/*req AuthRequest, resp *AuthResponse,*/ log log.Logger) error {
+func logoutHandler(req LogoutRequest, resp *LogoutResponce, log log.Logger) error {
 
-	//var (
-	//	username string
-	//	cid string
-	//	tokenString string
-	//)
-	//
-	//defer func(){
-	//	log.Log(
-	//		"username", username,
-	//		"jwtid", cid,
-	//		"token", tokenString,
-	//	)
-	//
-	//}()
-	//
-	//leeway := 10 * time.Minute
-	//tokenString = req.TokenString
-	//username = req.Username
-	//w, err := jws.ParseJWT([]byte(tokenString))
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//claims := w.Claims()
-	//
-	//if jwtid, ok := claims.JWTID(); ok {
-	//	cid = jwtid
-	//}
-	//
-	//err = claims.Validate(time.Now(), leeway, leeway);
-	//
-	//if err == nil || err == jwt.ErrTokenIsExpired {
-	//
-	//	errChan := make(chan error)
-	//	//remove UUID on Consul KV
-	//	go func(){
-	//		client := ConsulClient(consulAddress, consulPort, log)
-	//		kv := client.KV()
-	//		key := "session/" + cid
-	//		_, e := kv.Delete (key, nil)
-	//		resp.TokenString = ""
-	//		if err != nil {
-	//			errChan <- err
-	//		} else if e != nil {
-	//			errChan <- e
-	//		} else {
-	//			errChan <- nil
-	//		}
-	//	}()
-	//
-	//	if err = <- errChan; err != nil {
-	//		return err
-	//	} else if err == jwt.ErrTokenIsExpired{
-	//		return err
-	//	}
-	//}
+	var (
+		username string
+		jti string
+		tokenString string
+	)
+
+	defer func(){
+		log.Log(
+			"username", username,
+			"jti", jti,
+			"token", tokenString,
+		)
+
+	}()
+
+	tokenString = req.TokenString
+	username = req.Username
+
+	kf := func(token *jwt.Token) (interface{}, error) {
+		ok := token.Valid; if !ok {
+			return nil, errors.New("token is not valid")
+			}
+		return []byte(secret), nil
+		}
+
+	w, err := jwt.Parse(tokenString, kf)
+	println(w)
+	if err != nil {
+		return err
+	}
+
+
+	errChan := make(chan error)
+	//remove UUID on Consul KV
+	go func(){
+		client := redis.NewClient(
+			&redis.Options{
+				Addr: "localhost:6379",
+				Password: "",
+				DB: 0,
+			})
+		err := client.Del(jti)
+
+		if err != nil {
+			errChan <- err.Err()
+		} else {
+			errChan <- nil
+		}
+	}()
+
+	if err = <- errChan; err != nil {
+		return err
+		}
 
 	return nil
 }
+

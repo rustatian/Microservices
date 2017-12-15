@@ -1,0 +1,5 @@
+[DbCreds]
+server = "root:1@tcp(192.168.100.4:3306)/TaskCalendarDb"
+
+[SecretKey]
+key = "%kxkstXG%@uEG4^fj_gt8*XK?tzG@ddY#+wAd"
