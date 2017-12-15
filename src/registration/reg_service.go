@@ -30,8 +30,8 @@ func init() {
 
 type Service interface {
 	Registration(username, fullname, email, passwordHash, jwtToken string, isDisabled bool) (bool, error)
-	UsernameValidation()
-	EmailValidation()
+	UsernameValidation(username string) (bool, error)
+	EmailValidation(email string) (bool, error)
 }
 
 func NewRegService() Service {
@@ -59,11 +59,53 @@ func (newRegService) Registration(username, fullname, email, passwordHash, jwtTo
 	return true, nil
 }
 
-func (newRegService) UsernameValidation() {
+func (newRegService) UsernameValidation(username string) (bool, error) {
+	db, err := sql.Open("mysql", dbCreds)
+	if err != nil {
+		return false, err
+	}
 
+	defer db.Close()
+
+	sel, err := db.Prepare("SELECT ID FROM USER WHERE Username = ?;")
+	if err != nil {
+		panic(err.Error())
+		return false, err
+	}
+	defer sel.Close()
+
+	var id int
+	err = sel.QueryRow(username).Scan(&id)
+	if err != nil { //NoRows error - user does no exist
+		return false, nil
+	} else {
+		return true, nil // else - user exist
+	}
 }
 
-func (newRegService) EmailValidation() {
+func (newRegService) EmailValidation(email string) (bool, error) {
+	db, err := sql.Open("mysql", dbCreds)
+	if err != nil {
+		return false, err
+	}
+
+	defer db.Close()
+
+	sel, err := db.Prepare("SELECT ID FROM USER WHERE email = ?;")
+	if err != nil {
+		panic(err.Error())
+		return false, err
+	}
+	defer sel.Close()
+
+	var id int
+
+	err = sel.QueryRow(email).Scan(&id)
+	if err != nil { //NoRows error - email does no exist
+		return false, nil
+	} else {
+		return true, nil // else - email exist
+	}
 
 }
 
@@ -86,7 +128,7 @@ type UsernameValidationRequest struct {
 }
 
 type UsernameValidationResponce struct {
-	Status string `json:"status"`
+	Status bool `json:"status"`
 	Err    string `json:"err, omitempty"`
 }
 
@@ -95,7 +137,7 @@ type EmailValidationRequest struct {
 }
 
 type EmailValidationResponce struct {
-	Status string `json:"status"`
+	Status bool `json:"status"`
 	Err    string `json:"err, omitempty"`
 }
 
@@ -124,14 +166,32 @@ func MakeRegEndpoint(svc Service) endpoint.Endpoint {
 //TODO implement
 func MakeUserValEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		return "", nil
+		req, err := request.(UsernameValidationRequest)
+		if err != nil {
+			return "", err
+		}
+
+		exist, err := svc.UsernameValidation(req.User)
+		if err != nil {
+			return nil, err
+		}
+		return UsernameValidationResponce{Status: exist, Err:""}, nil
 	}
 }
 
 
 func MakeEmailValEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		return "", nil
+		req, err := response.(EmailValidationRequest)
+		if err != nil {
+			return nil, err
+		}
+		exist, err := svc.EmailValidation(req.Email)
+		if err != nil {
+			return nil, err
+		}
+
+		return EmailValidationResponce{Status:exist, Err:""}, nil
 	}
 }
 
