@@ -1,17 +1,17 @@
 package vault
 
 import (
+	"math/rand"
+	"os"
+	"strconv"
+
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/sd"
 	consulsd "github.com/go-kit/kit/sd/consul"
 	"github.com/hashicorp/consul/api"
-	"math/rand"
-	"os"
-	"strconv"
 )
 
 func Register(consulAddr, consulPort, vaultAddress, vaultPort string, logger log.Logger) (registar sd.Registrar) {
-
 	var client = consClient(logger, consulAddr, consulPort)
 
 	check := api.AgentServiceCheck{
@@ -31,11 +31,10 @@ func Register(consulAddr, consulPort, vaultAddress, vaultPort string, logger log
 		Tags:    []string{"vaultsvc", "Adexin"},
 		Check:   &check,
 	}
-
 	return consulsd.NewRegistrar(client, &asr, logger)
 }
 
-func consClient(logger log.Logger, consulAddr, consulPort string) consulsd.Client{
+func consClient(logger log.Logger, consulAddr, consulPort string) consulsd.Client {
 	var client consulsd.Client
 	{
 		consulConfig := api.DefaultConfig()

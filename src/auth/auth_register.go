@@ -32,7 +32,6 @@ func Register(consulAddr, consulPort, authAddress, authPort string, logger log.L
 		Interval: "10s",
 		Timeout:  "1s",
 		Notes:    "Basic health checks",
-		//DockerContainerID: "eced4d59afd5085f61f017f874130bfec111fb4af172ca48904ed404317c36c0",
 
 	}
 

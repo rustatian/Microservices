@@ -19,7 +19,10 @@ import (
 var dbCreds string
 
 func init() {
-	viper.SetConfigName("config")
+
+	viper.SetConfigName("reg_srv_conf")
+	viper.AddConfigPath("/config")
+
 	err := viper.ReadInConfig()
 	if err != nil {
 		panic(err)
@@ -29,7 +32,7 @@ func init() {
 }
 
 type Service interface {
-	Registration(username, fullname, email, passwordHash, jwtToken string, isDisabled bool) (bool, error)
+	Registration(username, fullname, email, passwordHash string, isDisabled bool) (bool, error)
 	UsernameValidation(username string) (bool, error)
 	EmailValidation(email string) (bool, error)
 }
@@ -40,7 +43,7 @@ func NewRegService() Service {
 
 type newRegService struct{}
 
-func (newRegService) Registration(username, fullname, email, passwordHash, jwtToken string, isDisabled bool) (bool, error) {
+func (newRegService) Registration(username, fullname, email, passwordHash string, isDisabled bool) (bool, error) {
 	db, err := sql.Open("mysql", dbCreds)
 	if err != nil {
 		return false, err
@@ -48,10 +51,10 @@ func (newRegService) Registration(username, fullname, email, passwordHash, jwtTo
 
 	defer db.Close()
 
-	stmIns, err := db.Prepare("INSERT INTO USER (Username, FullName, email, PasswordHash, jwtToken, IsDisabled) VALUES (?, ?, ?, ?, ?, ?);")
+	stmIns, err := db.Prepare("INSERT INTO USER (Username, FullName, email, PasswordHash, IsDisabled) VALUES (?, ?, ?, ?, ?);")
 	defer stmIns.Close()
 
-	_, err = stmIns.Exec(username, fullname, email, passwordHash, jwtToken, isDisabled)
+	_, err = stmIns.Exec(username, fullname, email, passwordHash, isDisabled)
 	if err != nil {
 		return false, err
 	}
@@ -114,8 +117,7 @@ type RegRequest struct {
 	Fullname     string `json:"fullname"`
 	Email        string `json:"email"`
 	PasswordHash string `json:"password_hash"`
-	JwtToken     string `json:"jwt_token"`
-	isDisabled   bool   `json:"is_disabled"`
+	isDisabled bool `json:"is_disabled"`
 }
 
 type RegResponce struct {
@@ -154,7 +156,7 @@ func MakeRegEndpoint(svc Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		ok, err := svc.Registration(req.Username, req.Fullname, req.Email, req.PasswordHash, req.JwtToken, req.isDisabled)
+		ok, err := svc.Registration(req.Username, req.Fullname, req.Email, req.PasswordHash, req.isDisabled)
 		if !ok {
 			return nil, err
 		}
@@ -163,7 +165,6 @@ func MakeRegEndpoint(svc Service) endpoint.Endpoint {
 	}
 }
 
-//TODO implement
 func MakeUserValEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req, err := request.(UsernameValidationRequest)

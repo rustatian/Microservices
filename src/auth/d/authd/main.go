@@ -16,11 +16,6 @@ import (
 )
 
 func main() {
-
-	ab := make([]int, 5)
-	append(ab, 5)
-	fmt.Print(ab)
-
 	var (
 		consulAddr = flag.String("consul.addr", "localhost", "consul address")
 		consulPort = flag.String("consul.port", ":8500", "consul port")

@@ -22,7 +22,7 @@ func MakeAuthHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logge
 	r.Methods("POST").Path("/auth/login").Handler(httptransport.NewServer(
 		endpoint.LoginEndpoint,
 		decodeLoginRequest,
-		encodeResponse,
+		encodeLoginResponse,
 		options...,
 	))
 
@@ -30,7 +30,7 @@ func MakeAuthHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logge
 	r.Methods("POST").Path("/auth/logout").Handler(httptransport.NewServer(
 		endpoint.LogoutEnpoint,
 		decodeLogoutRequest,
-		encodeResponse,
+		encodeLogoutResponce,
 		options...,
 	))
 
@@ -38,7 +38,7 @@ func MakeAuthHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logge
 	r.Methods("GET").Path("/health").Handler(httptransport.NewServer(
 		endpoint.HealthEndpoint,
 		decodeHealthRequest,
-		encodeResponse,
+		encodeLoginResponse,
 		options...,
 	))
 	return r
@@ -61,20 +61,21 @@ func decodeLoginRequest(ctx context.Context, r *http.Request) (interface{}, erro
 }
 
 func decodeLogoutRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	return "", nil
+	var req LogoutRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return "", err
+	}
+
+	return req, nil
 }
 
 func decodeHealthRequest(_ context.Context, _ *http.Request) (interface{}, error) {
 	return HealthRequest{}, nil
 }
 
-func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	type err interface {
-		error() error
-	}
-
-	if e, ok := response.(err); ok && e.error() != nil {
-		encodeError(ctx, e.error(), w)
+func encodeLoginResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	if e, ok := response.(error); ok && e != nil {
+		encodeError(ctx, e, w)
 		return nil
 	}
 
@@ -86,21 +87,46 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 	return json.NewEncoder(w).Encode(response)
 }
 
-func encodeError(_ context.Context, err error, w http.ResponseWriter) {
-	if err == nil {
-		panic("encodeError with nil error")
+func encodeLogoutResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) error {
+	if e, ok := responce.(error); ok && e != nil {
+		encodeError(ctx, e, w)
 	}
+
+	return json.NewEncoder(w).Encode(responce)
+}
+
+func encodeError(_ context.Context, err error, w http.ResponseWriter) {
+
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-	if err == InvalidLoginErr {
-		w.WriteHeader(http.StatusUnauthorized)
-	} else {
+	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"error": err.Error(),
 	})
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
