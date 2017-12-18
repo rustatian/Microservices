@@ -44,6 +44,7 @@ func (newService) ValidateUsername() bool {
   return true
 }
 
+//TODO create full check
 func (newService) AuthHealtCheck() bool {
 	return true
 }

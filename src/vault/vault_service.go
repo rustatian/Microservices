@@ -3,6 +3,8 @@ package vault
 import (
 	"context"
 	"errors"
+	"time"
+
 	stdjwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-kit/kit/auth/jwt"
 	"github.com/go-kit/kit/circuitbreaker"
@@ -14,7 +16,6 @@ import (
 	"github.com/sony/gobreaker"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/time/rate"
-	"time"
 )
 
 type Service interface {
@@ -29,7 +30,7 @@ func NewVaultService() Service {
 
 type ServiceMiddleware func(service Service) Service
 
-type newVaultService struct {}
+type newVaultService struct{}
 
 type hashRequest struct {
 	Password string `json:"password"`
@@ -37,21 +38,21 @@ type hashRequest struct {
 
 type hashResponse struct {
 	Hash string `json:"hash"`
-	Err string `json:"err, omitempty"`
+	Err  string `json:"err, omitempty"`
 }
 
 type validateRequest struct {
 	Password string `json:"password"`
-	Hash string `json:"hash"`
+	Hash     string `json:"hash"`
 }
 
 type validateResponse struct {
-	Valid bool `json:"valid"`
-	Err string `json:"err, omitempty"`
+	Valid bool   `json:"valid"`
+	Err   string `json:"err, omitempty"`
 }
 
 //TODO Create health logic, check free memory, disk space
-type healthRequest struct {}
+type healthRequest struct{}
 
 type healthResponse struct {
 	Status bool `json:"status"`
@@ -78,13 +79,13 @@ func (newVaultService) HealthCheck() bool {
 }
 
 type Endpoints struct {
-	HashEnpoint endpoint.Endpoint
-	ValidateEndpoint endpoint.Endpoint
+	HashEnpoint        endpoint.Endpoint
+	ValidateEndpoint   endpoint.Endpoint
 	VaultHealtEndpoint endpoint.Endpoint
 }
 
 func (e Endpoints) Hash(ctx context.Context, password string) (string, error) {
-	req := hashRequest {Password: password}
+	req := hashRequest{Password: password}
 	resp, err := e.HashEnpoint(ctx, req)
 	if err != nil {
 		return "", err
@@ -114,9 +115,9 @@ func MakeHashEndpoint(svc Service) endpoint.Endpoint {
 		req := request.(hashRequest)
 		v, err := svc.Hash(ctx, req.Password)
 		if err != nil {
-			return hashResponse{Hash:v, Err: err.Error()}, err
+			return hashResponse{Hash: v, Err: err.Error()}, err
 		}
-		return hashResponse{Hash:v, Err: ""}, nil
+		return hashResponse{Hash: v, Err: ""}, nil
 	}
 }
 
@@ -130,6 +131,7 @@ func MakeValidateEndpoint(svc Service) endpoint.Endpoint {
 		return validateResponse{Valid: v, Err: ""}, nil
 	}
 }
+
 //TODO correct health request
 func MakeHealtEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
@@ -140,15 +142,17 @@ func MakeHealtEndpoint(svc Service) endpoint.Endpoint {
 }
 
 func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) Endpoints {
-	kf := func(token *stdjwt.Token) (interface{}, error) { return []byte("%kxkstXG%@uEG4^fj_gt8*XK?tzG@ddY#+wAd"), nil }
+	kf := func(token *stdjwt.Token) (interface{}, error) {
+		return []byte("%kxkstXG%@uEG4^fj_gt8*XK?tzG@ddY#+wAd"), nil
+	}
 	var hashEndpoint endpoint.Endpoint
 	{
 		hashEndpoint = MakeHashEndpoint(svc)
-		hashEndpoint = jwt.NewParser(kf, stdjwt.SigningMethodHS256, jwt.StandardClaimsFactory)(hashEndpoint)
+		//hashEndpoint = jwt.NewParser(kf, stdjwt.SigningMethodHS256, jwt.StandardClaimsFactory)(hashEndpoint)
 		hashEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(hashEndpoint)
 		hashEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(hashEndpoint)
 		hashEndpoint = opentracing.TraceServer(trace, "hash")(hashEndpoint)
-		hashEndpoint = LoggingMiddleware(log.With(logger,"method", "hash"))(hashEndpoint)
+		hashEndpoint = LoggingMiddleware(log.With(logger, "method", "hash"))(hashEndpoint)
 	}
 	var validateEndpoint endpoint.Endpoint
 	{
@@ -157,7 +161,7 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 		validateEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(validateEndpoint)
 		validateEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(validateEndpoint)
 		validateEndpoint = opentracing.TraceServer(trace, "validate")(validateEndpoint)
-		validateEndpoint = LoggingMiddleware(log.With(logger,"method", "validate"))(validateEndpoint)
+		validateEndpoint = LoggingMiddleware(log.With(logger, "method", "validate"))(validateEndpoint)
 	}
 	var healthEndpoint endpoint.Endpoint
 	{
@@ -165,30 +169,12 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 		healthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(healthEndpoint)
 		healthEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(healthEndpoint)
 		healthEndpoint = opentracing.TraceServer(trace, "health")(healthEndpoint)
-		healthEndpoint = LoggingMiddleware(log.With(logger,"method", "health"))(healthEndpoint)
+		healthEndpoint = LoggingMiddleware(log.With(logger, "method", "health"))(healthEndpoint)
 	}
 
 	return Endpoints{
-		HashEnpoint: hashEndpoint,
-		ValidateEndpoint: validateEndpoint,
+		HashEnpoint:        hashEndpoint,
+		ValidateEndpoint:   validateEndpoint,
 		VaultHealtEndpoint: healthEndpoint,
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"time"
+	_ "github.com/go-sql-driver/mysql"
 
 	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
@@ -14,14 +15,17 @@ import (
 	"github.com/sony/gobreaker"
 	"github.com/spf13/viper"
 	"golang.org/x/time/rate"
+	"net/http"
+	"bytes"
+	"io/ioutil"
+	"encoding/json"
 )
 
 var dbCreds string
 
 func init() {
-
+	viper.AddConfigPath("src/registration/config")
 	viper.SetConfigName("reg_srv_conf")
-	viper.AddConfigPath("/config")
 
 	err := viper.ReadInConfig()
 	if err != nil {
@@ -32,9 +36,10 @@ func init() {
 }
 
 type Service interface {
-	Registration(username, fullname, email, passwordHash string, isDisabled bool) (bool, error)
+	Registration(username, fullname, email, password string, isDisabled bool) (bool, error)
 	UsernameValidation(username string) (bool, error)
 	EmailValidation(email string) (bool, error)
+	RegServiceHealthCheck() bool
 }
 
 func NewRegService() Service {
@@ -43,18 +48,35 @@ func NewRegService() Service {
 
 type newRegService struct{}
 
-func (newRegService) Registration(username, fullname, email, passwordHash string, isDisabled bool) (bool, error) {
+func (newRegService) Registration(username, fullname, email, password string, isDisabled bool) (ok bool, e error) {
 	db, err := sql.Open("mysql", dbCreds)
 	if err != nil {
 		return false, err
 	}
-
 	defer db.Close()
 
-	stmIns, err := db.Prepare("INSERT INTO USER (Username, FullName, email, PasswordHash, IsDisabled) VALUES (?, ?, ?, ?, ?);")
+	var hresp hashResponse
+
+	var req []byte = []byte(`{"password":"`+ password + `"}`)
+
+	resp, err := http.Post("http://localhost:10000/hash", "application/json", bytes.NewBuffer(req))
+
+	if err != nil{
+		return false, err
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+
+	err = json.Unmarshal(body,&hresp)
+
+	if hresp.Err != "" || err != nil{
+		return false, err
+	}
+
+	stmIns, err := db.Prepare("INSERT INTO User (Username, FullName, email, PasswordHash, IsDisabled) VALUES (?, ?, ?, ?, ?);")
 	defer stmIns.Close()
 
-	_, err = stmIns.Exec(username, fullname, email, passwordHash, isDisabled)
+	_, err = stmIns.Exec(username, fullname, email, hresp.Hash, false)
 	if err != nil {
 		return false, err
 	}
@@ -112,51 +134,17 @@ func (newRegService) EmailValidation(email string) (bool, error) {
 
 }
 
-type RegRequest struct {
-	Username     string `json:"username"`
-	Fullname     string `json:"fullname"`
-	Email        string `json:"email"`
-	PasswordHash string `json:"password_hash"`
-	isDisabled bool `json:"is_disabled"`
+func (newRegService) RegServiceHealthCheck() bool {
+	return true
 }
 
-type RegResponce struct {
-	Status bool   `json:"status"`
-	Err    string `json:"err, omitempty"`
-}
 
-type UsernameValidationRequest struct {
-	User string `json:"user"`
-}
-
-type UsernameValidationResponce struct {
-	Status bool `json:"status"`
-	Err    string `json:"err, omitempty"`
-}
-
-type EmailValidationRequest struct {
-	Email string `json:"email"`
-}
-
-type EmailValidationResponce struct {
-	Status bool `json:"status"`
-	Err    string `json:"err, omitempty"`
-}
-
-type Endpoints struct {
-	RegEndpoint           endpoint.Endpoint
-	UsernameValidEndpoint endpoint.Endpoint
-	EmailValidEndpoint    endpoint.Endpoint
-}
 
 func MakeRegEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req, err := request.(RegRequest)
-		if err != nil {
-			return nil, err
-		}
+		req := request.(RegRequest)
 
-		ok, err := svc.Registration(req.Username, req.Fullname, req.Email, req.PasswordHash, req.isDisabled)
+		ok, err := svc.Registration(req.Username, req.Fullname, req.Email, req.Password, req.isDisabled)
 		if !ok {
 			return nil, err
 		}
@@ -167,10 +155,7 @@ func MakeRegEndpoint(svc Service) endpoint.Endpoint {
 
 func MakeUserValEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req, err := request.(UsernameValidationRequest)
-		if err != nil {
-			return "", err
-		}
+		req := request.(UsernameValidationRequest)
 
 		exist, err := svc.UsernameValidation(req.User)
 		if err != nil {
@@ -180,19 +165,25 @@ func MakeUserValEndpoint(svc Service) endpoint.Endpoint {
 	}
 }
 
-
 func MakeEmailValEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req, err := response.(EmailValidationRequest)
-		if err != nil {
-			return nil, err
-		}
+		req := response.(EmailValidationRequest)
+
 		exist, err := svc.EmailValidation(req.Email)
 		if err != nil {
 			return nil, err
 		}
 
 		return EmailValidationResponce{Status:exist, Err:""}, nil
+	}
+}
+
+func MakeRegHealthCheckEnpoint(svc Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		_ = request.(HealthRequest)
+
+		v := svc.RegServiceHealthCheck()
+		return HealthResponse{Status:v}, nil
 	}
 }
 
@@ -224,9 +215,31 @@ func NewEnpoints(svc Service, logger log.Logger, tracer stdopentracing.Tracer) E
 		emailValidEndpoint = LoggingMiddleware(logger)(emailValidEndpoint)
 	}
 
+	var healthEnpoint endpoint.Endpoint
+	{
+		healthEnpoint = MakeRegHealthCheckEnpoint(svc)
+		healthEnpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Limit(time.Second), 1))(healthEnpoint)
+
+	}
+
 	return Endpoints {
 		RegEndpoint: regEndpoint,
 		UsernameValidEndpoint: usernameValidEndpoint,
 		EmailValidEndpoint: emailValidEndpoint,
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

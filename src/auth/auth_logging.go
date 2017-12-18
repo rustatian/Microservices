@@ -2,10 +2,11 @@ package auth
 
 import (
 	"context"
-	"github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/kit/log"
 	"strings"
 	"time"
+
+	"github.com/go-kit/kit/endpoint"
+	"github.com/go-kit/kit/log"
 )
 
 // implement function to return ServiceMiddleware
@@ -20,17 +21,16 @@ func LoggingMiddleware(logger log.Logger) endpoint.Middleware {
 	}
 }
 
-
 type loggingMiddleware struct {
 	Service
 	logger log.Logger
 }
 
 // Implement Service Interface for LoggingMiddleware
-func (mw loggingMiddleware) Login(username string, password string) (mesg string, roles []string, err error)  {
-	defer func(begin time.Time){
+func (mw loggingMiddleware) Login(username string, password string) (mesg string, roles []string, err error) {
+	defer func(begin time.Time) {
 		mw.logger.Log(
-			"function","Login",
+			"function", "Login",
 			"mesg", mesg,
 			"roles", strings.Join(roles, ","),
 			"took", time.Since(begin),
@@ -41,9 +41,9 @@ func (mw loggingMiddleware) Login(username string, password string) (mesg string
 }
 
 func (mw loggingMiddleware) Logout() (mesg string) {
-	defer func(begin time.Time){
+	defer func(begin time.Time) {
 		mw.logger.Log(
-			"function","Logout",
+			"function", "Logout",
 			"result", mesg,
 			"took", time.Since(begin),
 		)

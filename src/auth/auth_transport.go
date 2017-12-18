@@ -38,7 +38,7 @@ func MakeAuthHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logge
 	r.Methods("GET").Path("/health").Handler(httptransport.NewServer(
 		endpoint.HealthEndpoint,
 		decodeHealthRequest,
-		encodeLoginResponse,
+		encodeHealthResponce,
 		options...,
 	))
 	return r
@@ -92,6 +92,13 @@ func encodeLogoutResponce(ctx context.Context, w http.ResponseWriter, responce i
 		encodeError(ctx, e, w)
 	}
 
+	return json.NewEncoder(w).Encode(responce)
+}
+
+func encodeHealthResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) error {
+	if e, ok := responce.(error); ok && e != nil {
+		encodeError(ctx, e, w)
+	}
 	return json.NewEncoder(w).Encode(responce)
 }
 
