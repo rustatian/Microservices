@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"github.com/gorilla/mux"
 	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/auth/jwt"
 )
 
 // Make Http Handler
@@ -23,8 +22,9 @@ func MakeVaultHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logg
 	r.Methods("POST").Path("/hash").Handler(httptransport.NewServer(
 		endpoint.HashEnpoint,
 		DecodeHashRequest,
-		EncodeResponce,
-		append(options, httptransport.ServerBefore(jwt.HTTPToContext()))...,
+		EncodeHashResponce,
+		options...,
+		//append(options, httptransport.ServerBefore(jwt.HTTPToContext()))...,
 	))
 
 	r.Methods("POST").Path("/validate").Handler(httptransport.NewServer(
@@ -71,15 +71,15 @@ func DecodeHealthRequest(ctx context.Context, r *http.Request) (interface{}, err
 }
 
 
-func DecodeHashResponce(ctx context.Context, r *http.Response) (interface{}, error) {
-	var responce hashResponse
-	if err := json.NewDecoder(r.Body).Decode(&responce); err != nil {
-		return nil, err
+func EncodeHashResponce(ctx context.Context, w http.ResponseWriter, resp interface{}) error {
+	var responce = resp.(hashResponse)
+	if err := json.NewEncoder(w).Encode(&responce); err != nil {
+		return err
 	}
-	return responce, nil
+	return nil
 }
 
-func DecodeValidateResponce(ctx context.Context, r *http.Response) (interface{}, error) {
+func EncodeValidateResponce(ctx context.Context, r *http.Response) (interface{}, error) {
 	var responce validateResponse
 	if err := json.NewDecoder(r.Body).Decode(&responce); err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func DecodeValidateResponce(ctx context.Context, r *http.Response) (interface{},
 	return responce, nil
 }
 
-func DecodeHealthResponce(ctx context.Context, r *http.Response) (interface{}, error) {
+func EncodeHealthResponce(ctx context.Context, r *http.Response) (interface{}, error) {
 	var responce healthResponse
 	if err := json.NewDecoder(r.Body).Decode(&responce); err != nil {
 		return nil, err

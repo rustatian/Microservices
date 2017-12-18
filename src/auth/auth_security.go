@@ -17,7 +17,7 @@ var secret string
 
 func init() {
 	viper.AddConfigPath("src/auth/config")
-	viper.SetConfigName("reg_srv_conf")
+	viper.SetConfigName("auth_srv_conf")
 
 	err := viper.ReadInConfig()
 	if err != nil {
@@ -67,7 +67,7 @@ func JwtLogoutEndpoint(log log.Logger) endpoint.Middleware {
 	}
 }
 
-//TODO insert token into db
+//Just for experiment (Redis)
 func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 	var (
 		jti string
