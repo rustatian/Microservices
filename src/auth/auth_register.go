@@ -32,7 +32,6 @@ func Register(consulAddr, consulPort, authAddress, authPort string, logger log.L
 		Interval: "10s",
 		Timeout:  "1s",
 		Notes:    "Basic health checks",
-
 	}
 
 	port, _ := strconv.Atoi(authPort)

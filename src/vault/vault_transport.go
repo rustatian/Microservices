@@ -2,6 +2,7 @@ package vault
 
 import (
 	httptransport "github.com/go-kit/kit/transport/http"
+	stdprometheus "github.com/prometheus/client_golang/prometheus/promhttp"
 	"context"
 	"net/http"
 	"encoding/json"
@@ -41,6 +42,8 @@ func MakeVaultHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logg
 		EncodeResponce,
 		options...,
 	))
+
+	r.Path("/metrics").Handler(stdprometheus.Handler())
 
 	return r
 }

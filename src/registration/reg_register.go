@@ -1,36 +1,45 @@
 package registration
 
-import consul "github.com/hashicorp/consul/api"
+import (
+	consulsd "github.com/go-kit/kit/sd/consul"
+	consulapi "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/api"
+	"os"
+	"fmt"
+	"strconv"
+)
 
-func NewConsulClient(addr string) (Client, error) {
-	config := consul.DefaultConfig()
-	config.Address = addr
-	c, err := consul.NewClient(config)
-	if err != nil {
-		return nil, err
+
+func ConsClient(consulAddr *string) consulsd.Client {
+	var client consulsd.Client
+	{
+		consulConfig := api.DefaultConfig()
+		if len(*consulAddr) > 0 {
+			consulConfig.Address = *consulAddr
+		}
+		consulClient, err := api.NewClient(consulConfig)
+		if err != nil {
+			os.Exit(1)
+		}
+		client = consulsd.NewClient(consulClient)
+		}
+	return client
+}
+
+func ServiceD(service, tag string) (address string, e error) {
+
+	client := ConsClient(&consAddr)
+	srventry, _, err := client.Service(service, tag, true, &consulapi.QueryOptions{})
+
+	if len(srventry) == 0 && err == nil {
+		return "", fmt.Errorf("service ( %s ) was not found", service)
 	}
 
-	return &client{consul: c}, nil
-}
+	if err != nil {
+		return "", err
+	}
 
-type Client interface {
-	Service(string, string) ([]string, error)
-	Register(string, int) error
-	DeRegister(string) error
-}
+	addrs := srventry[0].Node.Address + ":" +strconv.Itoa(srventry[0].Service.Port)
 
-type client struct{
-	consul *consul.Client
-}
-
-func(c *client) Register(name string, port int) error {
-	return nil
-}
-
-func(c *client) DeRegister(id string) error {
-	return nil
-}
-
-func(c *client) Service(service, tag string) ([] *consul.ServiceEntry, *consul.QueryMeta, error) {
-
+	return addrs, nil
 }

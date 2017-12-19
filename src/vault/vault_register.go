@@ -12,7 +12,8 @@ import (
 )
 
 func Register(consulAddr, consulPort, vaultAddress, vaultPort string, logger log.Logger) (registar sd.Registrar) {
-	var client = consClient(logger, consulAddr, consulPort)
+
+	var client consulsd.Client = consClient(logger, consulAddr, consulPort)
 
 	check := api.AgentServiceCheck{
 		HTTP:     "http://" + vaultAddress + vaultPort + "/" + "health",
@@ -21,8 +22,9 @@ func Register(consulAddr, consulPort, vaultAddress, vaultPort string, logger log
 		Notes:    "Basic health checks",
 	}
 
-	port, _ := strconv.Atoi(vaultPort)
-	num := rand.Intn(100) // to make service ID unique
+
+	port, _ := strconv.Atoi(vaultPort[1:]) // remove :10000 -> 10000
+	num := rand.Intn(500) // to make service ID unique
 	asr := api.AgentServiceRegistration{
 		ID:      "vaultsvc" + strconv.Itoa(num), //unique service ID
 		Name:    "vaultsvc",
