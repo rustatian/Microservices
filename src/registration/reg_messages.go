@@ -32,12 +32,6 @@ type EmailValidationResponce struct {
 	Err    string `json:"err, omitempty"`
 }
 
-type Endpoints struct {
-	RegEndpoint           endpoint.Endpoint
-	UsernameValidEndpoint endpoint.Endpoint
-	EmailValidEndpoint    endpoint.Endpoint
-	RegHealthCheckEnpoint endpoint.Endpoint
-}
 
 type HealthRequest struct {
 

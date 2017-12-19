@@ -16,6 +16,8 @@ import (
 	"github.com/sony/gobreaker"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/time/rate"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
 type Service interface {
@@ -29,34 +31,6 @@ func NewVaultService() Service {
 }
 
 type ServiceMiddleware func(service Service) Service
-
-type newVaultService struct{}
-
-type hashRequest struct {
-	Password string `json:"password"`
-}
-
-type hashResponse struct {
-	Hash string `json:"hash"`
-	Err  string `json:"err, omitempty"`
-}
-
-type validateRequest struct {
-	Password string `json:"password"`
-	Hash     string `json:"hash"`
-}
-
-type validateResponse struct {
-	Valid bool   `json:"valid"`
-	Err   string `json:"err, omitempty"`
-}
-
-//TODO Create health logic, check free memory, disk space
-type healthRequest struct{}
-
-type healthResponse struct {
-	Status bool `json:"status"`
-}
 
 func (newVaultService) Hash(ctx context.Context, password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -97,6 +71,7 @@ func (e Endpoints) Hash(ctx context.Context, password string) (string, error) {
 	return hashResp.Hash, nil
 }
 
+// Validate used for
 func (e Endpoints) Validate(ctx context.Context, password, hash string) (bool, error) {
 	req := validateRequest{Password: password, Hash: hash}
 	resp, err := e.ValidateEndpoint(ctx, req)
@@ -110,6 +85,7 @@ func (e Endpoints) Validate(ctx context.Context, password, hash string) (bool, e
 	return validateResp.Valid, nil
 }
 
+//
 func MakeHashEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(hashRequest)
@@ -121,6 +97,7 @@ func MakeHashEndpoint(svc Service) endpoint.Endpoint {
 	}
 }
 
+//
 func MakeValidateEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(validateRequest)
@@ -141,16 +118,36 @@ func MakeHealtEndpoint(svc Service) endpoint.Endpoint {
 	}
 }
 
+
+//
 func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) Endpoints {
 	kf := func(token *stdjwt.Token) (interface{}, error) {
 		return []byte("%kxkstXG%@uEG4^fj_gt8*XK?tzG@ddY#+wAd"), nil
 	}
+
+	//declare metrics
+	fieldKeys := []string{"method"}
+	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		Namespace: "Adexin",
+		Subsystem: "vault_service",
+		Name:      "request_count",
+		Help:      "Number of requests received.",
+	}, fieldKeys)
+	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "Adexin",
+		Subsystem: "vault_service",
+		Name:      "request_latency_microseconds",
+		Help:      "Total duration of requests in microseconds.",
+	}, fieldKeys)
+
+	svc = Metrics(requestCount, requestLatency)(svc)
+
 	var hashEndpoint endpoint.Endpoint
 	{
 		hashEndpoint = MakeHashEndpoint(svc)
 		//hashEndpoint = jwt.NewParser(kf, stdjwt.SigningMethodHS256, jwt.StandardClaimsFactory)(hashEndpoint)
-		hashEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(hashEndpoint)
-		hashEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(hashEndpoint)
+		//hashEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(hashEndpoint)
+		//hashEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(hashEndpoint)
 		hashEndpoint = opentracing.TraceServer(trace, "hash")(hashEndpoint)
 		hashEndpoint = LoggingMiddleware(log.With(logger, "method", "hash"))(hashEndpoint)
 	}

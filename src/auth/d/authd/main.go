@@ -22,6 +22,7 @@ func main() {
 		authAddr   = flag.String("auth.addr", "localhost", "auth address")
 		authPort   = flag.String("auth.port", ":10001", "auth port")
 	)
+
 	flag.Parse()
 	ctx := context.Background()
 
@@ -64,7 +65,7 @@ func main() {
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		errChan <- fmt.Errorf("%s", <-c)
 	}()
-	chErr := <-errChan
+	chErr := <- errChan
 
 	reg.Deregister()
 	ilog.Fatalln(chErr)

@@ -19,9 +19,11 @@ import (
 	"bytes"
 	"io/ioutil"
 	"encoding/json"
+	"io"
 )
 
 var dbCreds string
+var consAddr string
 
 func init() {
 	viper.AddConfigPath("src/registration/config")
@@ -33,6 +35,7 @@ func init() {
 	}
 
 	dbCreds = viper.GetString("DbCreds.server")
+	consAddr = viper.GetString("Consul.address")
 }
 
 type Service interface {
@@ -59,19 +62,39 @@ func (newRegService) Registration(username, fullname, email, password string, is
 
 	var req []byte = []byte(`{"password":"`+ password + `"}`)
 
-	resp, err := http.Post("http://localhost:10000/hash", "application/json", bytes.NewBuffer(req))
-
-	if err != nil{
+	addr, err := ServiceD("vaultsvc","Adexin")
+	if err != nil {
 		return false, err
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	c := make(chan io.ReadCloser)
+	chErr := make(chan error)
 
-	err = json.Unmarshal(body,&hresp)
+	go func() {
+		resp, err := http.Post("http://" + addr + "/hash", "application/json", bytes.NewBuffer(req))
+		if err != nil{
+			chErr <- err
+		}
+		chErr <- nil
+		c <- resp.Body
+	}()
+
+	err = <- chErr
+	if err != nil {
+		return false, err
+	}
+
+	body, err := ioutil.ReadAll(<-c)
+
+	close(c)
+	close(chErr)
+
+	err = json.Unmarshal(body, &hresp)
 
 	if hresp.Err != "" || err != nil{
 		return false, err
 	}
+
 
 	stmIns, err := db.Prepare("INSERT INTO User (Username, FullName, email, PasswordHash, IsDisabled) VALUES (?, ?, ?, ?, ?);")
 	defer stmIns.Close()
@@ -83,6 +106,7 @@ func (newRegService) Registration(username, fullname, email, password string, is
 
 	return true, nil
 }
+
 
 func (newRegService) UsernameValidation(username string) (bool, error) {
 	db, err := sql.Open("mysql", dbCreds)
@@ -136,6 +160,13 @@ func (newRegService) EmailValidation(email string) (bool, error) {
 
 func (newRegService) RegServiceHealthCheck() bool {
 	return true
+}
+
+type Endpoints struct {
+	RegEndpoint           endpoint.Endpoint
+	UsernameValidEndpoint endpoint.Endpoint
+	EmailValidEndpoint    endpoint.Endpoint
+	RegHealthCheckEnpoint endpoint.Endpoint
 }
 
 
