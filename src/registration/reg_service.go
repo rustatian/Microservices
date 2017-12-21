@@ -107,7 +107,6 @@ func (newRegService) Registration(username, fullname, email, password string, is
 	return true, nil
 }
 
-
 func (newRegService) UsernameValidation(username string) (bool, error) {
 	db, err := sql.Open("mysql", dbCreds)
 	if err != nil {

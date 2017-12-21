@@ -22,9 +22,8 @@ func Register(consulAddr, consulPort, vaultAddress, vaultPort string, logger log
 		Notes:    "Basic health checks",
 	}
 
-
 	port, _ := strconv.Atoi(vaultPort[1:]) // remove :10000 -> 10000
-	num := rand.Intn(500) // to make service ID unique
+	num := rand.Intn(500)                  // to make service ID unique
 	asr := api.AgentServiceRegistration{
 		ID:      "vaultsvc" + strconv.Itoa(num), //unique service ID
 		Name:    "vaultsvc",
@@ -37,18 +36,15 @@ func Register(consulAddr, consulPort, vaultAddress, vaultPort string, logger log
 }
 
 func consClient(logger log.Logger, consulAddr, consulPort string) consulsd.Client {
-	var client consulsd.Client
-	{
-		consulConfig := api.DefaultConfig()
-		if len(consulAddr) > 0 {
-			consulConfig.Address = consulAddr + consulPort
-		}
-		consulClient, err := api.NewClient(consulConfig)
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
-		client = consulsd.NewClient(consulClient)
+	consulConfig := api.DefaultConfig()
+	if len(consulAddr) > 0 {
+		consulConfig.Address = consulAddr + consulPort
 	}
-	return client
+
+	consulClient, err := api.NewClient(consulConfig)
+	if err != nil {
+		logger.Log("err", err)
+		os.Exit(1)
+	}
+	return consulsd.NewClient(consulClient)
 }
