@@ -24,6 +24,7 @@ func Register(consulAddr, consulPort, vaultAddress, vaultPort string, logger log
 
 	port, _ := strconv.Atoi(vaultPort[1:]) // remove :10000 -> 10000
 	num := rand.Intn(500)                  // to make service ID unique
+
 	asr := api.AgentServiceRegistration{
 		ID:      "vaultsvc" + strconv.Itoa(num), //unique service ID
 		Name:    "vaultsvc",
@@ -45,6 +46,7 @@ func consClient(logger log.Logger, consulAddr, consulPort string) consulsd.Clien
 	if err != nil {
 		logger.Log("err", err)
 		os.Exit(1)
+
 	}
 	return consulsd.NewClient(consulClient)
 }
