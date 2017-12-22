@@ -28,8 +28,8 @@ func ConsClient(consulAddr *string) consulsd.Client {
 
 func ServiceD(service, tag string) (address string, e error) {
 
-	client := ConsClient(&consAddr)
-	srventry, _, err := client.Service(service, tag, true, &consulapi.QueryOptions{})
+	clnt := ConsClient(&consAddr)
+	srventry, _, err := clnt.Service(service, tag, true, &consulapi.QueryOptions{})
 
 	if len(srventry) == 0 && err == nil {
 		return "", fmt.Errorf("service ( %s ) was not found", service)

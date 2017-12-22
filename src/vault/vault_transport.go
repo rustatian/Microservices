@@ -6,10 +6,9 @@ import (
 	"context"
 	"net/http"
 	"encoding/json"
-	"bytes"
-	"io/ioutil"
 	"github.com/gorilla/mux"
 	"github.com/go-kit/kit/log"
+	"fmt"
 )
 
 // Make Http Handler
@@ -25,13 +24,13 @@ func MakeVaultHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logg
 		DecodeHashRequest,
 		EncodeHashResponce,
 		options...,
-		//append(options, httptransport.ServerBefore(jwt.HTTPToContext()))...,
+		//append(options, httptransport.ServerBefore(jwt.HTTPToContext()))..., //auth
 	))
 
 	r.Methods("POST").Path("/validate").Handler(httptransport.NewServer(
 		endpoint.ValidateEndpoint,
 		DecodeValidateRequest,
-		EncodeResponce,
+		EncodeValidateResponce,
 		options...,
 	))
 
@@ -39,7 +38,7 @@ func MakeVaultHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logg
 	r.Methods("GET").Path("/health").Handler(httptransport.NewServer(
 		endpoint.VaultHealtEndpoint,
 		DecodeHealthRequest,
-		EncodeResponce,
+		EncodeHealthResponce,
 		options...,
 	))
 
@@ -76,44 +75,40 @@ func DecodeHealthRequest(ctx context.Context, r *http.Request) (interface{}, err
 
 func EncodeHashResponce(ctx context.Context, w http.ResponseWriter, resp interface{}) error {
 	var responce = resp.(hashResponse)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	if err := json.NewEncoder(w).Encode(&responce); err != nil {
 		return err
 	}
 	return nil
 }
 
-func EncodeValidateResponce(ctx context.Context, r *http.Response) (interface{}, error) {
-	var responce validateResponse
-	if err := json.NewDecoder(r.Body).Decode(&responce); err != nil {
-		return nil, err
+func EncodeValidateResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) (e error) {
+	resp, ok := responce.(validateResponse); if !ok {
+		return fmt.Errorf("type conversion error in validate encode responce")
 	}
-	return responce, nil
-}
 
-func EncodeHealthResponce(ctx context.Context, r *http.Response) (interface{}, error) {
-	var responce healthResponse
-	if err := json.NewDecoder(r.Body).Decode(&responce); err != nil {
-		return nil, err
-	}
-	return responce, nil
-}
-
-
-func EncodeResponce(_ context.Context, w http.ResponseWriter, response interface{}) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	return json.NewEncoder(w).Encode(response)
-}
-
-func EncodeRequest(_ context.Context, req *http.Request, request interface{}) error {
-	// Both uppercase and count requests are encoded in the same way:
-	// simple JSON serialization to the request body.
-	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(request); err != nil {
+	err := json.NewEncoder(w).Encode(resp)
+	if err != nil {
 		return err
 	}
-	req.Body = ioutil.NopCloser(&buf)
+
 	return nil
 }
+
+func EncodeHealthResponce(ctx context.Context, w http.ResponseWriter, responce interface {}) (e error) {
+	resp, ok := responce.(healthResponse); if !ok {
+		return fmt.Errorf("type conversion error in health encode responce")
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(&resp); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 
 
 func encodeError(_ context.Context, err error, w http.ResponseWriter) {
