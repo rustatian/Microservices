@@ -100,8 +100,9 @@ func hash(writer http.ResponseWriter, r *http.Request){
 		setUrlInRedis("/hash", addr + "/hash")
 
 	} else {
+
 		addr := adrFromRedis
-		resp, err := http.Post(addr, "application/json", r.Body)
+		resp, err := http.Post(addr, "application/json; charset=utf-8", r.Body)
 		defer resp.Body.Close()
 
 		if err != nil {
