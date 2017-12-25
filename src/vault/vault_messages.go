@@ -1,7 +1,5 @@
 package vault
 
-type newVaultService struct{}
-
 type hashRequest struct {
 	Password string `json:"password"`
 }

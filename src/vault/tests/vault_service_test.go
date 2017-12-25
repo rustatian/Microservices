@@ -1,11 +1,10 @@
 package tests
 
 import (
-	"testing"
-	"context"
 	"TaskManager/src/vault"
+	"context"
+	"testing"
 )
-
 
 func TestVaultService(t *testing.T) {
 	srv := vault.NewVaultService()

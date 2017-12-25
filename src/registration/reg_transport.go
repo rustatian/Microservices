@@ -3,9 +3,9 @@ package registration
 import (
 	"context"
 	"github.com/go-kit/kit/log"
+	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"net/http"
-	httptransport "github.com/go-kit/kit/transport/http"
 
 	"encoding/json"
 )
@@ -46,11 +46,10 @@ func MakeRegHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logger
 		options...,
 	))
 
-
 	return r
 }
 
-func decodeRegRequest(ctx context.Context, r *http.Request) (request interface{}, e error)  {
+func decodeRegRequest(ctx context.Context, r *http.Request) (request interface{}, e error) {
 	var req RegRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -89,7 +88,6 @@ func decodeEmailValidationRequest(ctx context.Context, r *http.Request) (interfa
 func encodeEmailValidationResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) error {
 	return nil
 }
-
 
 func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	if err != nil {

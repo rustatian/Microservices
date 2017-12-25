@@ -3,9 +3,11 @@ package registration
 import (
 	"context"
 	"database/sql"
-	"time"
 	_ "github.com/go-sql-driver/mysql"
+	"time"
 
+	"bytes"
+	"encoding/json"
 	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
@@ -15,11 +17,9 @@ import (
 	"github.com/sony/gobreaker"
 	"github.com/spf13/viper"
 	"golang.org/x/time/rate"
-	"net/http"
-	"bytes"
-	"io/ioutil"
-	"encoding/json"
 	"io"
+	"io/ioutil"
+	"net/http"
 )
 
 var dbCreds string
@@ -60,9 +60,9 @@ func (newRegService) Registration(username, fullname, email, password string, is
 
 	var hresp hashResponse
 
-	var req []byte = []byte(`{"password":"`+ password + `"}`)
+	var req []byte = []byte(`{"password":"` + password + `"}`)
 
-	addr, err := ServiceD("vaultsvc","Adexin")
+	addr, err := ServiceD("vaultsvc", "Adexin")
 	if err != nil {
 		return false, err
 	}
@@ -71,15 +71,15 @@ func (newRegService) Registration(username, fullname, email, password string, is
 	chErr := make(chan error)
 
 	go func() {
-		resp, err := http.Post("http://" + addr + "/hash", "application/json", bytes.NewBuffer(req))
-		if err != nil{
+		resp, err := http.Post("http://"+addr+"/hash", "application/json", bytes.NewBuffer(req))
+		if err != nil {
 			chErr <- err
 		}
 		chErr <- nil
 		c <- resp.Body
 	}()
 
-	err = <- chErr
+	err = <-chErr
 	if err != nil {
 		return false, err
 	}
@@ -91,10 +91,9 @@ func (newRegService) Registration(username, fullname, email, password string, is
 
 	err = json.Unmarshal(body, &hresp)
 
-	if hresp.Err != "" || err != nil{
+	if hresp.Err != "" || err != nil {
 		return false, err
 	}
-
 
 	stmIns, err := db.Prepare("INSERT INTO User (Username, FullName, email, PasswordHash, IsDisabled) VALUES (?, ?, ?, ?, ?);")
 	defer stmIns.Close()
@@ -106,7 +105,6 @@ func (newRegService) Registration(username, fullname, email, password string, is
 
 	return true, nil
 }
-
 
 func (newRegService) UsernameValidation(username string) (bool, error) {
 	db, err := sql.Open("mysql", dbCreds)
@@ -169,8 +167,6 @@ type Endpoints struct {
 	RegHealthCheckEnpoint endpoint.Endpoint
 }
 
-
-
 func MakeRegEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(RegRequest)
@@ -192,7 +188,7 @@ func MakeUserValEndpoint(svc Service) endpoint.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-		return UsernameValidationResponce{Status: exist, Err:""}, nil
+		return UsernameValidationResponce{Status: exist, Err: ""}, nil
 	}
 }
 
@@ -205,7 +201,7 @@ func MakeEmailValEndpoint(svc Service) endpoint.Endpoint {
 			return nil, err
 		}
 
-		return EmailValidationResponce{Status:exist, Err:""}, nil
+		return EmailValidationResponce{Status: exist, Err: ""}, nil
 	}
 }
 
@@ -214,7 +210,7 @@ func MakeRegHealthCheckEnpoint(svc Service) endpoint.Endpoint {
 		_ = request.(HealthRequest)
 
 		v := svc.RegServiceHealthCheck()
-		return HealthResponse{Status:v}, nil
+		return HealthResponse{Status: v}, nil
 	}
 }
 
@@ -242,7 +238,7 @@ func NewEnpoints(svc Service, logger log.Logger, tracer stdopentracing.Tracer) E
 		emailValidEndpoint = MakeEmailValEndpoint(svc)
 		emailValidEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(emailValidEndpoint)
 		emailValidEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(emailValidEndpoint)
-		emailValidEndpoint = opentracing.TraceServer(tracer,"EmailValidation")(emailValidEndpoint)
+		emailValidEndpoint = opentracing.TraceServer(tracer, "EmailValidation")(emailValidEndpoint)
 		emailValidEndpoint = LoggingMiddleware(logger)(emailValidEndpoint)
 	}
 
@@ -253,24 +249,9 @@ func NewEnpoints(svc Service, logger log.Logger, tracer stdopentracing.Tracer) E
 
 	}
 
-	return Endpoints {
-		RegEndpoint: regEndpoint,
+	return Endpoints{
+		RegEndpoint:           regEndpoint,
 		UsernameValidEndpoint: usernameValidEndpoint,
-		EmailValidEndpoint: emailValidEndpoint,
+		EmailValidEndpoint:    emailValidEndpoint,
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

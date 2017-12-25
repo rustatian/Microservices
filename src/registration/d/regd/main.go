@@ -1,25 +1,25 @@
 package main
 
 import (
-	"flag"
-	"context"
-	"github.com/go-kit/kit/log"
-	"os"
 	"TaskManager/src/registration"
+	"context"
+	"flag"
+	"fmt"
+	"github.com/go-kit/kit/log"
 	"github.com/opentracing/opentracing-go"
-	log2 "log"
+	ilog "log"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
-	"fmt"
 )
 
 func main() {
 	var (
-		//consulAddr = flag.String("consul.addr", "localhost", "consul address")
-		//consulPort = flag.String("consul.port", ":8500", "consul port")
-		//regAddr   = flag.String("reg.addr", "localhost", "reg address")
-		regPort   = flag.String("reg.port", ":10002", "reg port")
+		consulAddr = flag.String("consul.addr", "localhost", "consul address")
+		consulPort = flag.String("consul.port", ":8500", "consul port")
+		regAddr    = flag.String("reg.addr", "localhost", "reg address")
+		regPort    = flag.String("reg.port", ":10002", "reg port")
 	)
 
 	flag.Parse()
@@ -38,19 +38,20 @@ func main() {
 	endpoints := registration.NewEnpoints(svc, logger, tracer)
 
 	endpoint := registration.Endpoints{
-		RegEndpoint: endpoints.RegEndpoint,
+		RegEndpoint:           endpoints.RegEndpoint,
 		UsernameValidEndpoint: endpoints.UsernameValidEndpoint,
-		EmailValidEndpoint: endpoints.EmailValidEndpoint,
+		EmailValidEndpoint:    endpoints.EmailValidEndpoint,
 		RegHealthCheckEnpoint: endpoints.RegHealthCheckEnpoint,
 	}
 
 	r := registration.MakeRegHttpHandler(ctx, endpoint, logger)
+	reg := registration.Register(*consulAddr, *consulPort, *regAddr, *regPort, logger)
 
 	errChan := make(chan error)
 
 	go func() {
-		log2.Println("Starting server at port", *regPort)
-		//reg.Register()
+		ilog.Println("Starting server at port", *regPort)
+		reg.Register()
 		handler := r
 		errChan <- http.ListenAndServe(*regPort, handler)
 	}()
@@ -61,7 +62,7 @@ func main() {
 		errChan <- fmt.Errorf("%s", <-c)
 	}()
 
-	var e error = <- errChan
-	//reg.Deregister()
-	log2.Fatalln(e)
+	var e error = <-errChan
+	reg.Deregister()
+	ilog.Fatalln(e)
 }

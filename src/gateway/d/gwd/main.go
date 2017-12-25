@@ -1,14 +1,14 @@
 package main
 
 import (
+	"TaskManager/src/gateway"
 	"flag"
 	"fmt"
+	"github.com/go-kit/kit/log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"github.com/go-kit/kit/log"
-	"TaskManager/src/gateway"
 )
 
 func main() {
@@ -17,7 +17,6 @@ func main() {
 	)
 
 	flag.Parse()
-
 
 	var logger log.Logger
 	{
@@ -37,13 +36,12 @@ func main() {
 		errc <- http.ListenAndServe(*httpAddr, handler)
 	}()
 
-
 	go func() {
 		c := make(chan os.Signal)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		errc <- fmt.Errorf("%s", <-c)
 	}()
 
-	chErr := <- errc
+	chErr := <-errc
 	logger.Log("exit", chErr)
 }

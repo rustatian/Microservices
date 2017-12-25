@@ -3,21 +3,18 @@ package vault
 import (
 	"context"
 	"errors"
-	"time"
-
-	stdjwt "github.com/dgrijalva/jwt-go"
-	"github.com/go-kit/kit/auth/jwt"
 	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/go-kit/kit/ratelimit"
 	"github.com/go-kit/kit/tracing/opentracing"
 	stdopentracing "github.com/opentracing/opentracing-go"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/sony/gobreaker"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/time/rate"
-	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"time"
 )
 
 type Service interface {
@@ -30,7 +27,7 @@ func NewVaultService() Service {
 	return newVaultService{}
 }
 
-type ServiceMiddleware func(service Service) Service
+type newVaultService struct{}
 
 func (newVaultService) Hash(ctx context.Context, password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -118,12 +115,11 @@ func MakeHealtEndpoint(svc Service) endpoint.Endpoint {
 	}
 }
 
-
 //
 func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) Endpoints {
-	kf := func(token *stdjwt.Token) (interface{}, error) {
-		return []byte("%kxkstXG%@uEG4^fj_gt8*XK?tzG@ddY#+wAd"), nil
-	}
+	//kf := func(token *stdjwt.Token) (interface{}, error) {
+	//	return []byte("%kxkstXG%@uEG4^fj_gt8*XK?tzG@ddY#+wAd"), nil
+	//}
 
 	//declare metrics
 	fieldKeys := []string{"method"}
@@ -140,22 +136,22 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 		Help:      "Total duration of requests in microseconds.",
 	}, fieldKeys)
 
-	svc = Metrics(requestCount, requestLatency)(svc)
+	svc = Metrics(requestCount, requestLatency, svc)
 
 	var hashEndpoint endpoint.Endpoint
 	{
 		hashEndpoint = MakeHashEndpoint(svc)
 		//hashEndpoint = jwt.NewParser(kf, stdjwt.SigningMethodHS256, jwt.StandardClaimsFactory)(hashEndpoint)
-		//hashEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(hashEndpoint)
-		//hashEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(hashEndpoint)
+		hashEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(hashEndpoint)
+		hashEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(hashEndpoint)
 		hashEndpoint = opentracing.TraceServer(trace, "hash")(hashEndpoint)
 		hashEndpoint = LoggingMiddleware(log.With(logger, "method", "hash"))(hashEndpoint)
 	}
 	var validateEndpoint endpoint.Endpoint
 	{
 		validateEndpoint = MakeValidateEndpoint(svc)
-		validateEndpoint = jwt.NewParser(kf, stdjwt.SigningMethodHS256, jwt.StandardClaimsFactory)(validateEndpoint)
-		validateEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(validateEndpoint)
+		//validateEndpoint = jwt.NewParser(kf, stdjwt.SigningMethodHS256, jwt.StandardClaimsFactory)(validateEndpoint)
+		validateEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(validateEndpoint)
 		validateEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(validateEndpoint)
 		validateEndpoint = opentracing.TraceServer(trace, "validate")(validateEndpoint)
 		validateEndpoint = LoggingMiddleware(log.With(logger, "method", "validate"))(validateEndpoint)
@@ -163,7 +159,7 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 	var healthEndpoint endpoint.Endpoint
 	{
 		healthEndpoint = MakeHealtEndpoint(svc)
-		healthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(healthEndpoint)
+		healthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(healthEndpoint)
 		healthEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(healthEndpoint)
 		healthEndpoint = opentracing.TraceServer(trace, "health")(healthEndpoint)
 		healthEndpoint = LoggingMiddleware(log.With(logger, "method", "health"))(healthEndpoint)
