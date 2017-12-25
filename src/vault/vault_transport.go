@@ -1,14 +1,14 @@
 package vault
 
 import (
-	httptransport "github.com/go-kit/kit/transport/http"
-	stdprometheus "github.com/prometheus/client_golang/prometheus/promhttp"
 	"context"
-	"net/http"
 	"encoding/json"
-	"github.com/gorilla/mux"
-	"github.com/go-kit/kit/log"
 	"fmt"
+	"github.com/go-kit/kit/log"
+	httptransport "github.com/go-kit/kit/transport/http"
+	"github.com/gorilla/mux"
+	stdprometheus "github.com/prometheus/client_golang/prometheus/promhttp"
+	"net/http"
 )
 
 // Make Http Handler
@@ -24,7 +24,7 @@ func MakeVaultHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logg
 		DecodeHashRequest,
 		EncodeHashResponce,
 		options...,
-		//append(options, httptransport.ServerBefore(jwt.HTTPToContext()))..., //auth
+	//append(options, httptransport.ServerBefore(jwt.HTTPToContext()))..., //auth
 	))
 
 	r.Methods("POST").Path("/validate").Handler(httptransport.NewServer(
@@ -55,7 +55,7 @@ func DecodeHashRequest(ctx context.Context, r *http.Request) (interface{}, error
 	return request, nil
 }
 
-func DecodeValidateRequest(ctx context.Context, r *http.Request) (interface{}, error)  {
+func DecodeValidateRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var req validateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func DecodeValidateRequest(ctx context.Context, r *http.Request) (interface{}, e
 	return req, nil
 }
 
-func DecodeHealthRequest(ctx context.Context, r *http.Request) (interface{}, error)  {
+func DecodeHealthRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	//var req healthRequest
 	//if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 	//	return nil, err
@@ -71,7 +71,6 @@ func DecodeHealthRequest(ctx context.Context, r *http.Request) (interface{}, err
 	//return req, nil
 	return healthRequest{}, nil
 }
-
 
 func EncodeHashResponce(ctx context.Context, w http.ResponseWriter, resp interface{}) error {
 	var responce = resp.(hashResponse)
@@ -83,7 +82,8 @@ func EncodeHashResponce(ctx context.Context, w http.ResponseWriter, resp interfa
 }
 
 func EncodeValidateResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) (e error) {
-	resp, ok := responce.(validateResponse); if !ok {
+	resp, ok := responce.(validateResponse)
+	if !ok {
 		return fmt.Errorf("type conversion error in validate encode responce")
 	}
 
@@ -96,8 +96,9 @@ func EncodeValidateResponce(ctx context.Context, w http.ResponseWriter, responce
 	return nil
 }
 
-func EncodeHealthResponce(ctx context.Context, w http.ResponseWriter, responce interface {}) (e error) {
-	resp, ok := responce.(healthResponse); if !ok {
+func EncodeHealthResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) (e error) {
+	resp, ok := responce.(healthResponse)
+	if !ok {
 		return fmt.Errorf("type conversion error in health encode responce")
 	}
 
@@ -108,8 +109,6 @@ func EncodeHealthResponce(ctx context.Context, w http.ResponseWriter, responce i
 
 	return nil
 }
-
-
 
 func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	if err == nil {

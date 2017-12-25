@@ -1,12 +1,11 @@
 package registration
 
-
 type RegRequest struct {
-	Username     string `json:"username"`
-	Fullname     string `json:"fullname"`
-	Email        string `json:"email"`
-	Password string `json:"password"`
-	isDisabled bool `json:"is_disabled"`
+	Username   string `json:"username"`
+	Fullname   string `json:"fullname"`
+	Email      string `json:"email"`
+	Password   string `json:"password"`
+	isDisabled bool   `json:"is_disabled"`
 }
 
 type RegResponce struct {
@@ -19,7 +18,7 @@ type UsernameValidationRequest struct {
 }
 
 type UsernameValidationResponce struct {
-	Status bool `json:"status"`
+	Status bool   `json:"status"`
 	Err    string `json:"err, omitempty"`
 }
 
@@ -28,21 +27,18 @@ type EmailValidationRequest struct {
 }
 
 type EmailValidationResponce struct {
-	Status bool `json:"status"`
+	Status bool   `json:"status"`
 	Err    string `json:"err, omitempty"`
 }
 
-
 type HealthRequest struct {
-
 }
 
 type HealthResponse struct {
 	Status bool `json:"status"`
 }
 
-
 type hashResponse struct {
 	Hash string `json:"hash"`
-	Err string `json:"err, omitempty"`
+	Err  string `json:"err, omitempty"`
 }
