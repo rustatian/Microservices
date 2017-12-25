@@ -65,8 +65,8 @@ func main() {
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		errChan <- fmt.Errorf("%s", <-c)
 	}()
-  
-	chErr := <- errChan
+
+	chErr := <-errChan
 
 	reg.Deregister()
 	ilog.Fatalln(chErr)

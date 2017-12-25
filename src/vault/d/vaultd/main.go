@@ -16,10 +16,11 @@ import (
 func main() {
 	var (
 		consulAddr = flag.String("consul.addr", "localhost", "consul address")
-		consulPort = flag.String("consul.port", ":8500", "consul port")
-		vaultAddr = flag.String("vault.addr", "localhost", "advertise address")
-		vaultPort = flag.String("vault.port", ":10000", "advertise port")
-		)
+		consulPort = flag.String("consul.port", "8500", "consul port")
+		vaultAddr  = flag.String("vault.addr", "localhost", "vault address")
+		vaultPort  = flag.String("vault.port", "10000", "vault port")
+	)
+
 	flag.Parse()
 	ctx := context.Background()
 
@@ -33,12 +34,10 @@ func main() {
 	svc := vault.NewVaultService()
 
 	tracer := stdopentracing.GlobalTracer()
-	reg := vault.Register(*consulAddr, *consulPort, *vaultAddr,*vaultPort, logger)
-
+	reg := vault.Register(*consulAddr, *consulPort, *vaultAddr, *vaultPort, logger)
 
 	endpoints := vault.NewEndpoints(svc, logger, tracer)
 	r := vault.MakeVaultHttpHandler(ctx, endpoints, logger)
-
 
 	// Interrupt handler.
 	errc := make(chan error)
@@ -48,14 +47,12 @@ func main() {
 		errc <- fmt.Errorf("%s", <-c)
 	}()
 
-
 	// HTTP transport.
 	go func() {
 		reg.Register()
-		logger.Log("transport", "HTTP", "addr", *vaultPort)
-		errc <- http.ListenAndServe(*vaultPort, r)
+		logger.Log("transport", "HTTP", "addr", ":" + *vaultPort)
+		errc <- http.ListenAndServe(":"+*vaultPort, r)
 	}()
-
 
 	logger.Log("exit", <-errc)
 	reg.Deregister()

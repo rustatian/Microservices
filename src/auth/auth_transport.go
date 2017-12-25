@@ -116,24 +116,3 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 		"error": err.Error(),
 	})
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

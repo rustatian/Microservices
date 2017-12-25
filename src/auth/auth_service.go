@@ -23,9 +23,7 @@ func NewAuthService() Service {
 	return newService{}
 }
 
-
-
-type newService struct {}
+type newService struct{}
 
 //TODO check username and pass in database
 func (newService) Login(username, password string) (mesg string, roles []string, err error) {
@@ -41,7 +39,7 @@ func (newService) Logout() string {
 
 //TODO check username
 func (newService) ValidateUsername() bool {
-  return true
+	return true
 }
 
 //TODO create full check
@@ -49,50 +47,19 @@ func (newService) AuthHealtCheck() bool {
 	return true
 }
 
-type LoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	TokenString string `json:"token_string"`
-}
-
-type LoginResponce struct {
-	Roles []string `json:"roles, omitempty"`
-	Mesg string `json:"mesg"`
-	TokenString string `json:"token_string"`
-	Err string `json:"err, omitempty"`
-}
-
-type LogoutRequest struct {
-	TokenString string `json:"token_string"`
-	Username string `json:"username"`
-}
-
-type LogoutResponce struct {
-	Status bool `json:"status"`
-}
-
-type HealthRequest struct {
-
-}
-
-type HealthResponse struct {
-	Status bool `json:"status"`
-}
-
 // endpoints wrapper
 type Endpoints struct {
-	LoginEndpoint endpoint.Endpoint
-	LogoutEnpoint endpoint.Endpoint
+	LoginEndpoint  endpoint.Endpoint
+	LogoutEnpoint  endpoint.Endpoint
 	HealthEndpoint endpoint.Endpoint
 }
-
 
 func MakeLoginEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		var (
 			roles []string
-			mesg string
-			err error
+			mesg  string
+			err   error
 		)
 
 		req := request.(LoginRequest)
@@ -101,7 +68,7 @@ func MakeLoginEndpoint(svc Service) endpoint.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-		return LoginResponce { Mesg:mesg, Roles: roles, Err: "" }, nil
+		return LoginResponce{Mesg: mesg, Roles: roles, Err: ""}, nil
 	}
 }
 
@@ -116,7 +83,7 @@ func MakeLogoutEndpoint(svc Service) endpoint.Endpoint {
 func MakeHealthEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		status := svc.AuthHealtCheck()
-		return HealthResponse{Status: status }, nil
+		return HealthResponse{Status: status}, nil
 	}
 }
 
@@ -128,7 +95,7 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 		loginEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(loginEndpoint)
 		loginEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(loginEndpoint)
 		loginEndpoint = opentracing.TraceServer(trace, "login")(loginEndpoint)
-		loginEndpoint = LoggingMiddleware(log.With(logger, "method","login"))(loginEndpoint)
+		loginEndpoint = LoggingMiddleware(log.With(logger, "method", "login"))(loginEndpoint)
 	}
 
 	var logoutEndpoint endpoint.Endpoint
@@ -138,7 +105,7 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 		logoutEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(logoutEndpoint)
 		logoutEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(logoutEndpoint)
 		logoutEndpoint = opentracing.TraceServer(trace, "logout")(logoutEndpoint)
-		logoutEndpoint = LoggingMiddleware(log.With(logger, "method","logout"))(logoutEndpoint)
+		logoutEndpoint = LoggingMiddleware(log.With(logger, "method", "logout"))(logoutEndpoint)
 	}
 
 	var healthEndpoint endpoint.Endpoint
@@ -147,45 +114,13 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 		healthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(healthEndpoint)
 		healthEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(healthEndpoint)
 		healthEndpoint = opentracing.TraceServer(trace, "health")(healthEndpoint)
-		healthEndpoint = LoggingMiddleware(log.With(logger, "method","health"))(healthEndpoint)
+		healthEndpoint = LoggingMiddleware(log.With(logger, "method", "health"))(healthEndpoint)
 
 	}
 
 	return Endpoints{
-		LoginEndpoint: loginEndpoint,
-		LogoutEnpoint: logoutEndpoint,
+		LoginEndpoint:  loginEndpoint,
+		LogoutEnpoint:  logoutEndpoint,
 		HealthEndpoint: healthEndpoint,
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

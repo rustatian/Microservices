@@ -2,15 +2,15 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
 	"github.com/leonelquinteros/gorand"
-	"time"
-	"gopkg.in/redis.v3"
-	"encoding/json"
 	"github.com/spf13/viper"
-	"errors"
+	"gopkg.in/redis.v3"
+	"time"
 )
 
 var secret string
@@ -31,7 +31,6 @@ func init() {
 var (
 	method = jwt.SigningMethodHS256
 )
-
 
 func JwtLoginEndpoint(log log.Logger) endpoint.Middleware {
 	return func(i endpoint.Endpoint) endpoint.Endpoint {
@@ -70,11 +69,11 @@ func JwtLogoutEndpoint(log log.Logger) endpoint.Middleware {
 //Just for experiment (Redis)
 func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 	var (
-		jti string
+		jti         string
 		tokenString string
 	)
 
-	defer func(){
+	defer func() {
 		log.Log(
 			"username", username,
 			"jti", jti,
@@ -87,13 +86,12 @@ func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 		panic(err.Error())
 	}
 
-
 	token := jwt.New(method)
 	claims := token.Claims.(jwt.MapClaims)
 
-	m := map[string]interface{} {
+	m := map[string]interface{}{
 		"username": username,
-		"roles": resp.Roles,
+		"roles":    resp.Roles,
 	}
 	val, _ := json.Marshal(m)
 
@@ -115,12 +113,12 @@ func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 	go func() {
 		client := redis.NewClient(
 			&redis.Options{
-				Addr: "localhost:6379",
+				Addr:     "localhost:6379",
 				Password: "",
-				DB: 0,
+				DB:       0,
 			})
 
-		var err *redis.StatusCmd = client.Set(uuid, val, time.Duration(time.Hour * 24))
+		var err *redis.StatusCmd = client.Set(uuid, val, time.Duration(time.Hour*24))
 		if err != nil {
 			errChan <- err.Err()
 		} else {
@@ -128,8 +126,7 @@ func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 		}
 	}()
 
-
-	if err = <- errChan; err != nil {
+	if err = <-errChan; err != nil {
 		return err
 	} else {
 		return nil
@@ -141,12 +138,12 @@ func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 func logoutHandler(req LogoutRequest, resp *LogoutResponce, log log.Logger) error {
 
 	var (
-		username string
-		jti string
+		username    string
+		jti         string
 		tokenString string
 	)
 
-	defer func(){
+	defer func() {
 		log.Log(
 			"username", username,
 			"jti", jti,
@@ -159,11 +156,12 @@ func logoutHandler(req LogoutRequest, resp *LogoutResponce, log log.Logger) erro
 	username = req.Username
 
 	kf := func(token *jwt.Token) (interface{}, error) {
-		ok := token.Valid; if !ok {
+		ok := token.Valid
+		if !ok {
 			return nil, errors.New("token is not valid")
-			}
-		return []byte(secret), nil
 		}
+		return []byte(secret), nil
+	}
 
 	w, err := jwt.Parse(tokenString, kf)
 	println(w)
@@ -171,15 +169,14 @@ func logoutHandler(req LogoutRequest, resp *LogoutResponce, log log.Logger) erro
 		return err
 	}
 
-
 	errChan := make(chan error)
 	//remove UUID on Consul KV
-	go func(){
+	go func() {
 		client := redis.NewClient(
 			&redis.Options{
-				Addr: "localhost:6379",
+				Addr:     "localhost:6379",
 				Password: "",
-				DB: 0,
+				DB:       0,
 			})
 		err := client.Del(jti)
 
@@ -190,10 +187,9 @@ func logoutHandler(req LogoutRequest, resp *LogoutResponce, log log.Logger) erro
 		}
 	}()
 
-	if err = <- errChan; err != nil {
+	if err = <-errChan; err != nil {
 		return err
-		}
+	}
 
 	return nil
 }
-
