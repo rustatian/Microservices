@@ -62,6 +62,7 @@ func (newRegService) Registration(username, fullname, email, password string, is
 
 	var req []byte = []byte(`{"password":"` + password + `"}`)
 
+	//TODO rebuild
 	addr, err := ServiceD("vaultsvc", "Adexin")
 	if err != nil {
 		return false, err
@@ -71,7 +72,7 @@ func (newRegService) Registration(username, fullname, email, password string, is
 	chErr := make(chan error)
 
 	go func() {
-		resp, err := http.Post("http://"+addr+"/hash", "application/json", bytes.NewBuffer(req))
+		resp, err := http.Post("http://" + addr + "/hash", "application/json", bytes.NewBuffer(req))
 		if err != nil {
 			chErr <- err
 		}

@@ -1,16 +1,16 @@
-package auth
+package authorization
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
-	"github.com/leonelquinteros/gorand"
 	"github.com/spf13/viper"
 	"gopkg.in/redis.v3"
 	"time"
+	"github.com/leonelquinteros/gorand"
+	"encoding/json"
 )
 
 var secret string
@@ -104,7 +104,7 @@ func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 	JsonWebToken, err := token.SignedString([]byte(secret))
 	tokenString = JsonWebToken[:20] + "..."
 	if err != nil {
-
+		return err
 	}
 
 	resp.TokenString = JsonWebToken
@@ -131,6 +131,7 @@ func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 	} else {
 		return nil
 	}
+	return nil
 }
 
 //TODO create logout with database

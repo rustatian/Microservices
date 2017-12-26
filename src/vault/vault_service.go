@@ -27,6 +27,8 @@ func NewVaultService() Service {
 	return newVaultService{}
 }
 
+type ServiceMiddleware func(svc Service) Service
+
 type newVaultService struct{}
 
 func (newVaultService) Hash(ctx context.Context, password string) (string, error) {
@@ -127,16 +129,16 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 		Namespace: "Adexin",
 		Subsystem: "vault_service",
 		Name:      "request_count",
-		Help:      "Number of requests received.",
+		Help:      "Number of requests received",
 	}, fieldKeys)
 	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "Adexin",
 		Subsystem: "vault_service",
 		Name:      "request_latency_microseconds",
-		Help:      "Total duration of requests in microseconds.",
+		Help:      "Total duration of requests in microseconds",
 	}, fieldKeys)
 
-	svc = Metrics(requestCount, requestLatency, svc)
+	svc = Metrics(requestCount, requestLatency)(svc)
 
 	var hashEndpoint endpoint.Endpoint
 	{

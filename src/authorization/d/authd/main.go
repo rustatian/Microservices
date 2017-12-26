@@ -1,7 +1,7 @@
 package main
 
 import (
-	"TaskManager/src/auth"
+	"TaskManager/src/authorization"
 	"context"
 	"flag"
 	"fmt"
@@ -33,21 +33,21 @@ func main() {
 		logger = log.With(logger, "caller", log.DefaultCaller)
 	}
 
-	svc := auth.NewAuthService()
+	svc := authorization.NewAuthService()
 	tracer := stdopentracing.GlobalTracer()
 
-	endpoints := auth.NewEndpoints(svc, logger, tracer)
+	endpoints := authorization.NewEndpoints(svc, logger, tracer)
 
-	endpoint := auth.Endpoints{
+	endpoint := authorization.Endpoints{
 		LoginEndpoint:  endpoints.LoginEndpoint,
 		LogoutEnpoint:  endpoints.LogoutEnpoint,
 		HealthEndpoint: endpoints.HealthEndpoint,
 	}
 
-	r := auth.MakeAuthHttpHandler(ctx, endpoint, logger)
+	r := authorization.MakeAuthHttpHandler(ctx, endpoint, logger)
 
 	// Register Service to Consul
-	reg := auth.Register(*consulAddr, *consulPort, *authAddr, *authPort, logger)
+	reg := authorization.Register(*consulAddr, *consulPort, *authAddr, *authPort, logger)
 
 	errChan := make(chan error)
 

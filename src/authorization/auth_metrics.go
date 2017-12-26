@@ -1,10 +1,10 @@
-package vault
+package authorization
 
 import (
-	"context"
 	"github.com/go-kit/kit/metrics"
 	"time"
 )
+
 
 func Metrics(requestCount metrics.Counter, requestLatency metrics.Histogram) ServiceMiddleware {
 	return func(svc Service) Service {
@@ -18,36 +18,65 @@ func Metrics(requestCount metrics.Counter, requestLatency metrics.Histogram) Ser
 
 type metricsMiddleware struct {
 	Service
-	requestCount   metrics.Counter
+	requestCount metrics.Counter
 	requestLatency metrics.Histogram
 }
 
-func (mw metricsMiddleware) Hash(ctx context.Context, password string) (out string, e error) {
+func(mw metricsMiddleware) Login(username, password string) (mesg string, roles []string, err error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "Hash"}
+		lvs := []string{"method", "Login"}
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds() * 100000)
 	}(time.Now())
-	out, e = mw.Service.Hash(ctx, password)
+
+	mesg, roles, err = mw.Service.Login(username, password)
 	return
 }
 
-func (mw metricsMiddleware) Validate(ctx context.Context, password, hash string) (out bool, e error) {
+func (mw metricsMiddleware) Logout() (out string) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "Validate"}
+		lvs := []string{"method", "Logout"}
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds() * 100000)
 	}(time.Now())
-	out, e = mw.Service.Validate(ctx, password, hash)
+
+	out = mw.Service.Logout()
 	return
 }
 
-func (mw metricsMiddleware) HealthCheck() (res bool) {
+func (mw metricsMiddleware) AuthHealtCheck() (res bool) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "HealthCheck"}
+		lvs := []string{"method", "AuthHealtCheck"}
 		mw.requestCount.With(lvs...).Add(1)
 		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds() * 100000)
 	}(time.Now())
-	res = mw.Service.HealthCheck()
+
+	res = mw.Service.AuthHealtCheck()
 	return
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

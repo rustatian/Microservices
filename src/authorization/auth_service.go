@@ -1,4 +1,4 @@
-package auth
+package authorization
 
 import (
 	"context"
@@ -8,10 +8,30 @@ import (
 	"github.com/go-kit/kit/ratelimit"
 	"github.com/go-kit/kit/tracing/opentracing"
 	stdopentracing "github.com/opentracing/opentracing-go"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/sony/gobreaker"
 	"golang.org/x/time/rate"
 	"time"
+	_ "github.com/go-sql-driver/mysql"
+	"database/sql"
+	"github.com/spf13/viper"
+	"fmt"
 )
+
+var dbCreds string
+
+func init() {
+	viper.AddConfigPath("src/auth/config")
+	viper.SetConfigName("auth_srv_conf")
+
+	err := viper.ReadInConfig()
+	if err != nil {
+		panic(err)
+	}
+
+	dbCreds = viper.GetString("DbCreds.server")
+}
 
 type Service interface {
 	Login(username, password string) (mesg string, roles []string, err error)
@@ -23,13 +43,34 @@ func NewAuthService() Service {
 	return newService{}
 }
 
+type ServiceMiddleware func(svc Service) Service
+
 type newService struct{}
 
-//TODO check username and pass in database
 func (newService) Login(username, password string) (mesg string, roles []string, err error) {
-	mesg, roles, err = "Login succeed", []string{"Admin", "User"}, nil
-	//mesg, roles, err = "", nil, InvalidLoginErr
-	return
+	db, err := sql.Open("mysql", dbCreds)
+	if err != nil {
+		return "", nil, err
+	}
+	defer db.Close()
+
+	if err != nil {
+		return "", nil, err
+	}
+
+	sel, err := db.Prepare("SELECT ID FROM User WHERE Username = ?;")
+	if err != nil {
+		return "", nil, err
+	}
+	defer sel.Close()
+
+	var id int
+	err = sel.QueryRow(username).Scan(&id)
+	if err != nil {
+		return "Login Failed", nil, fmt.Errorf("user does't exist")
+	} else {
+		return "Login succeed", []string{"Admin", "User"}, nil
+	}
 }
 
 //TODO remove token from db
@@ -88,6 +129,25 @@ func MakeHealthEndpoint(svc Service) endpoint.Endpoint {
 }
 
 func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) Endpoints {
+
+	fieldKeys := []string{"method"}
+	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		Namespace: "Adexin",
+		Subsystem: "auth_service",
+		Name: "request_count",
+		Help: "Number of requests received",
+	}, fieldKeys)
+
+	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "Adexin",
+		Subsystem: "auth_service",
+		Name: "request_count",
+		Help: "Total duration of requests in microseconds",
+	}, fieldKeys)
+
+
+	svc = Metrics(requestCount, requestLatency)(svc)
+
 	var loginEndpoint endpoint.Endpoint
 	{
 		loginEndpoint = MakeLoginEndpoint(svc)
