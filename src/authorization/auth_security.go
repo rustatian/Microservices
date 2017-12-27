@@ -1,22 +1,22 @@
-package auth
+package authorization
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
-	"github.com/leonelquinteros/gorand"
 	"github.com/spf13/viper"
 	"gopkg.in/redis.v3"
 	"time"
+	"github.com/leonelquinteros/gorand"
+	"encoding/json"
 )
 
 var secret string
 
 func init() {
-	viper.AddConfigPath("src/auth/config")
+	viper.AddConfigPath("src/authorization/config")
 	viper.SetConfigName("auth_srv_conf")
 
 	err := viper.ReadInConfig()
@@ -104,12 +104,14 @@ func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 	JsonWebToken, err := token.SignedString([]byte(secret))
 	tokenString = JsonWebToken[:20] + "..."
 	if err != nil {
-
+		return err
 	}
 
 	resp.TokenString = JsonWebToken
 
 	errChan := make(chan error)
+	defer close(errChan)
+
 	go func() {
 		client := redis.NewClient(
 			&redis.Options{
@@ -121,16 +123,15 @@ func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 		var err *redis.StatusCmd = client.Set(uuid, val, time.Duration(time.Hour*24))
 		if err != nil {
 			errChan <- err.Err()
-		} else {
-			errChan <- nil
 		}
+		errChan <- nil
 	}()
 
 	if err = <-errChan; err != nil {
 		return err
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 //TODO create logout with database

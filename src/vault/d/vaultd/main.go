@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"TaskManager/src/svcdiscovery"
 )
 
 func main() {
@@ -19,6 +20,7 @@ func main() {
 		consulPort = flag.String("consul.port", "8500", "consul port")
 		vaultAddr  = flag.String("vault.addr", "localhost", "vault address")
 		vaultPort  = flag.String("vault.port", "10000", "vault port")
+		svcName = flag.String("service.name", "vaultsvc", "Vault service name")
 	)
 
 	flag.Parse()
@@ -34,7 +36,7 @@ func main() {
 	svc := vault.NewVaultService()
 
 	tracer := stdopentracing.GlobalTracer()
-	reg := vault.Register(*consulAddr, *consulPort, *vaultAddr, *vaultPort, logger)
+	reg := svcdiscovery.ServiceDiscovery().Registration(*consulAddr, *consulPort, *vaultAddr, *vaultPort, *svcName, logger)
 
 	endpoints := vault.NewEndpoints(svc, logger, tracer)
 	r := vault.MakeVaultHttpHandler(ctx, endpoints, logger)

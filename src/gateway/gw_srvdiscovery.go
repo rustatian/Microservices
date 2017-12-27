@@ -13,6 +13,7 @@ func init() {
 }
 
 type Discovery interface {
+
 	Find(consulAddress, serviceName, tag *string) (address string, e error)
 }
 
@@ -21,7 +22,7 @@ type serviceDiscovery struct{}
 var instance *serviceDiscovery
 var once sync.Once
 
-func GetServiceDiscovery() Discovery {
+func ServiceDiscovery() Discovery {
 	once.Do(func() {
 		instance = &serviceDiscovery{}
 	})

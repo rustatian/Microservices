@@ -1,7 +1,7 @@
 package main
 
 import (
-	"TaskManager/src/auth"
+	"TaskManager/src/authorization"
 	"context"
 	"flag"
 	"fmt"
@@ -13,14 +13,17 @@ import (
 
 	"github.com/go-kit/kit/log"
 	stdopentracing "github.com/opentracing/opentracing-go"
+	"net"
+	"TaskManager/src/svcdiscovery"
 )
 
 func main() {
 	var (
 		consulAddr = flag.String("consul.addr", "localhost", "consul address")
-		consulPort = flag.String("consul.port", ":8500", "consul port")
+		consulPort = flag.String("consul.port", "8500", "consul port")
 		authAddr   = flag.String("auth.addr", "localhost", "auth address")
-		authPort   = flag.String("auth.port", ":10001", "auth port")
+		authPort   = flag.String("auth.port", "10001", "auth port")
+		svcName    = flag.String("service.name", "authsvc", "Authorization microservice name")
 	)
 
 	flag.Parse()
@@ -33,31 +36,31 @@ func main() {
 		logger = log.With(logger, "caller", log.DefaultCaller)
 	}
 
-	svc := auth.NewAuthService()
+	svc := authorization.NewAuthService()
 	tracer := stdopentracing.GlobalTracer()
 
-	endpoints := auth.NewEndpoints(svc, logger, tracer)
+	endpoints := authorization.NewEndpoints(svc, logger, tracer)
 
-	endpoint := auth.Endpoints{
+	endpoint := authorization.Endpoints{
 		LoginEndpoint:  endpoints.LoginEndpoint,
 		LogoutEnpoint:  endpoints.LogoutEnpoint,
 		HealthEndpoint: endpoints.HealthEndpoint,
 	}
 
-	r := auth.MakeAuthHttpHandler(ctx, endpoint, logger)
+	r := authorization.MakeAuthHttpHandler(ctx, endpoint, logger)
 
 	// Register Service to Consul
-	reg := auth.Register(*consulAddr, *consulPort, *authAddr, *authPort, logger)
+	reg := svcdiscovery.ServiceDiscovery().Registration(*consulAddr, *consulPort, *authAddr, *authPort, *svcName, logger)
 
 	errChan := make(chan error)
+	defer close(errChan)
 
 	// HTTP transport
 	go func() {
 		ilog.Println("Starting server at port", *authPort)
-		// register service
 		reg.Register()
 		handler := r
-		errChan <- http.ListenAndServe(*authPort, handler)
+		errChan <- http.ListenAndServe(net.JoinHostPort(*authAddr, *authPort), handler)
 	}()
 
 	go func() {

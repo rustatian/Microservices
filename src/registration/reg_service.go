@@ -20,10 +20,15 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"TaskManager/src/svcdiscovery"
 )
 
-var dbCreds string
-var consAddr string
+var (
+	dbCreds  string
+	consAddr string
+	svcName  string
+	svcTag   string
+)
 
 func init() {
 	viper.AddConfigPath("src/registration/config")
@@ -36,6 +41,8 @@ func init() {
 
 	dbCreds = viper.GetString("DbCreds.server")
 	consAddr = viper.GetString("Consul.address")
+	svcName = viper.GetString("services.vault")
+	svcTag = viper.GetString("tags.tag")
 }
 
 type Service interface {
@@ -59,10 +66,10 @@ func (newRegService) Registration(username, fullname, email, password string, is
 	defer db.Close()
 
 	var hresp hashResponse
-
 	var req []byte = []byte(`{"password":"` + password + `"}`)
 
-	addr, err := ServiceD("vaultsvc", "Adexin")
+	//TODO rebuild
+	addr, err := svcdiscovery.ServiceDiscovery().Find(&consAddr, &svcName, &svcTag)
 	if err != nil {
 		return false, err
 	}
@@ -70,8 +77,11 @@ func (newRegService) Registration(username, fullname, email, password string, is
 	c := make(chan io.ReadCloser)
 	chErr := make(chan error)
 
+	defer close(c)
+	defer close(chErr)
+
 	go func() {
-		resp, err := http.Post("http://"+addr+"/hash", "application/json", bytes.NewBuffer(req))
+		resp, err := http.Post("http://" + addr + "/hash", "application/json", bytes.NewBuffer(req))
 		if err != nil {
 			chErr <- err
 		}
@@ -86,8 +96,7 @@ func (newRegService) Registration(username, fullname, email, password string, is
 
 	body, err := ioutil.ReadAll(<-c)
 
-	close(c)
-	close(chErr)
+
 
 	err = json.Unmarshal(body, &hresp)
 

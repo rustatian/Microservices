@@ -46,7 +46,7 @@ func MakeHttpHandler() http.Handler {
 // /registration
 func registration(writer http.ResponseWriter, request *http.Request) {
 
-	addr, err := GetServiceDiscovery().Find(&consulAddress, &regSvcName, &tag)
+	addr, err := ServiceDiscovery().Find(&consulAddress, &regSvcName, &tag)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
@@ -74,7 +74,7 @@ func registration(writer http.ResponseWriter, request *http.Request) {
 
 // /validate
 func validate(writer http.ResponseWriter, request *http.Request) {
-	addr, err := GetServiceDiscovery().Find(&consulAddress, &vaultSvcName, &tag)
+	addr, err := ServiceDiscovery().Find(&consulAddress, &vaultSvcName, &tag)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
@@ -104,7 +104,7 @@ func validate(writer http.ResponseWriter, request *http.Request) {
 func hash(writer http.ResponseWriter, r *http.Request) {
 
 	//Get service address
-	addr, err := GetServiceDiscovery().Find(&consulAddress, &vaultSvcName, &tag)
+	addr, err := ServiceDiscovery().Find(&consulAddress, &vaultSvcName, &tag)
 
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)

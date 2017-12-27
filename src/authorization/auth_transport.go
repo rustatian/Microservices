@@ -1,10 +1,11 @@
-package auth
+package authorization
 
 import (
 	"context"
 	"encoding/json"
 	"github.com/go-kit/kit/log"
 	httptransport "github.com/go-kit/kit/transport/http"
+	stdprometheus "github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/gorilla/mux"
 	"net/http"
 	"strings"
@@ -40,7 +41,10 @@ func MakeAuthHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logge
 		decodeHealthRequest,
 		encodeHealthResponce,
 		options...,
+
 	))
+
+	r.Path("/metrics").Handler(stdprometheus.Handler())
 	return r
 }
 
@@ -60,7 +64,7 @@ func decodeLoginRequest(ctx context.Context, r *http.Request) (interface{}, erro
 	return req, nil
 }
 
-func decodeLogoutRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func decodeLogoutRequest(_ context.Context, r *http.Request) (interface{}, error) {
 	var req LogoutRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return "", err
@@ -69,6 +73,7 @@ func decodeLogoutRequest(ctx context.Context, r *http.Request) (interface{}, err
 	return req, nil
 }
 
+//TODO health correct
 func decodeHealthRequest(_ context.Context, _ *http.Request) (interface{}, error) {
 	return HealthRequest{}, nil
 }
