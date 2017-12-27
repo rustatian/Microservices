@@ -6,8 +6,8 @@ import (
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"net/http"
-
 	"encoding/json"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 //TODO replace nils
@@ -27,24 +27,26 @@ func MakeRegHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logger
 
 	r.Methods("POST").Path("/validate/user").Handler(httptransport.NewServer(
 		endpoint.UsernameValidEndpoint,
-		nil,
-		nil,
+		decodeUsernameValRequest,
+		encodeUsernameValResponce,
 		options...,
 	))
 
 	r.Methods("POST").Path("/validate/email").Handler(httptransport.NewServer(
 		endpoint.EmailValidEndpoint,
-		nil,
-		nil,
+		decodeEmailValidationRequest,
+		encodeEmailValidationResponce,
 		options...,
 	))
 
-	r.Methods("GET").Path("/validate/health").Handler(httptransport.NewServer(
+	r.Methods("GET").Path("/health").Handler(httptransport.NewServer(
 		endpoint.RegHealthCheckEnpoint,
-		nil,
-		nil,
+		decodeRegHealthCheckRequest,
+		encodeRegHealthCheckResponce,
 		options...,
 	))
+
+	r.Path("/metrics").Handler(promhttp.Handler())
 
 	return r
 }
@@ -57,43 +59,87 @@ func decodeRegRequest(ctx context.Context, r *http.Request) (request interface{}
 	}
 
 	req.isDisabled = false
-
 	return req, nil
 }
 
 func encodeRegResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) error {
-	if e, ok := responce.(error); ok && e != nil {
-		return e
-	}
-	if _, ok := responce.(RegResponce); ok {
+	if resp, ok := responce.(RegResponce); ok {
 		w.WriteHeader(http.StatusOK)
-	}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		return json.NewEncoder(w).Encode(resp)
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	return json.NewEncoder(w).Encode(responce)
+	} else {
+		w.WriteHeader(http.StatusInternalServerError)
+		return json.NewEncoder(w).Encode(ok)
+	}
 }
 
 func decodeUsernameValRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	return "", nil
+	var req UsernameValidationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
-func encodeResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) error {
-	return nil
+func encodeUsernameValResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) error {
+	if resp, ok := responce.(UsernameValidationResponce); ok {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(resp)
+		return nil
+	} else {
+		w.WriteHeader(http.StatusInternalServerError)
+		return json.NewEncoder(w).Encode(ok)
+	}
 }
 
 func decodeEmailValidationRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	return "", nil
+	var req EmailValidationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
 func encodeEmailValidationResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) error {
-	return nil
+	if resp, ok := responce.(EmailValidationResponce); ok {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(resp)
+		return nil
+	} else {
+		w.WriteHeader(http.StatusInternalServerError)
+		return json.NewEncoder(w).Encode(ok)
+	}
 }
 
-func encodeError(_ context.Context, err error, w http.ResponseWriter) {
-	if err != nil {
+
+func decodeRegHealthCheckRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	//var req HealthRequest
+	//if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	//	return nil, err
+	//}
+	//return req, nil
+	return HealthRequest{}, nil
+}
+
+func encodeRegHealthCheckResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) error {
+	if resp, ok := responce.(HealthResponse); ok {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(resp)
+		return nil
+	} else {
 		w.WriteHeader(http.StatusInternalServerError)
-		panic("encodeError")
+		return json.NewEncoder(w).Encode(ok)
 	}
+}
+
+
+
+func encodeError(_ context.Context, err error, w http.ResponseWriter) {
+	w.WriteHeader(http.StatusInternalServerError)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	json.NewEncoder(w).Encode(map[string]interface{}{

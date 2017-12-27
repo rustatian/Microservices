@@ -1,7 +1,7 @@
 package main
 
 import (
-	"TaskManager/src/vault"
+	"TaskManager/src/microservices/vault"
 	"context"
 	"flag"
 	"fmt"

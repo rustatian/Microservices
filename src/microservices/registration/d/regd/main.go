@@ -1,7 +1,7 @@
 package main
 
 import (
-	"TaskManager/src/registration"
+	"TaskManager/src/microservices/registration"
 	"context"
 	"flag"
 	"fmt"
@@ -38,7 +38,7 @@ func main() {
 	svc := registration.NewRegService()
 	tracer := opentracing.GlobalTracer()
 
-	endpoints := registration.NewEnpoints(svc, logger, tracer)
+	endpoints := registration.NewEndpoints(svc, logger, tracer)
 
 	endpoint := registration.Endpoints{
 		RegEndpoint:           endpoints.RegEndpoint,

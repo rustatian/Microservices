@@ -21,6 +21,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"TaskManager/src/svcdiscovery"
+	"github.com/go-kit/kit/metrics/prometheus"
+	kitprometheus "github.com/prometheus/client_golang/prometheus"
 )
 
 var (
@@ -31,8 +33,8 @@ var (
 )
 
 func init() {
-	viper.AddConfigPath("src/registration/config")
-	viper.SetConfigName("reg_srv_conf")
+	viper.AddConfigPath("src/config")
+	viper.SetConfigName("app_conf")
 
 	err := viper.ReadInConfig()
 	if err != nil {
@@ -58,6 +60,8 @@ func NewRegService() Service {
 
 type newRegService struct{}
 
+type ServiceMiddleware func(svc Service) Service
+
 func (newRegService) Registration(username, fullname, email, password string, isDisabled bool) (ok bool, e error) {
 	db, err := sql.Open("mysql", dbCreds)
 	if err != nil {
@@ -68,7 +72,6 @@ func (newRegService) Registration(username, fullname, email, password string, is
 	var hresp hashResponse
 	var req []byte = []byte(`{"password":"` + password + `"}`)
 
-	//TODO rebuild
 	addr, err := svcdiscovery.ServiceDiscovery().Find(&consAddr, &svcName, &svcTag)
 	if err != nil {
 		return false, err
@@ -77,11 +80,8 @@ func (newRegService) Registration(username, fullname, email, password string, is
 	c := make(chan io.ReadCloser)
 	chErr := make(chan error)
 
-	defer close(c)
-	defer close(chErr)
-
 	go func() {
-		resp, err := http.Post("http://" + addr + "/hash", "application/json", bytes.NewBuffer(req))
+		resp, err := http.Post(addr + "/hash", "application/json", bytes.NewBuffer(req))
 		if err != nil {
 			chErr <- err
 		}
@@ -95,8 +95,6 @@ func (newRegService) Registration(username, fullname, email, password string, is
 	}
 
 	body, err := ioutil.ReadAll(<-c)
-
-
 
 	err = json.Unmarshal(body, &hresp)
 
@@ -165,6 +163,7 @@ func (newRegService) EmailValidation(email string) (bool, error) {
 
 }
 
+//TODO health create
 func (newRegService) RegServiceHealthCheck() bool {
 	return true
 }
@@ -223,7 +222,25 @@ func MakeRegHealthCheckEnpoint(svc Service) endpoint.Endpoint {
 	}
 }
 
-func NewEnpoints(svc Service, logger log.Logger, tracer stdopentracing.Tracer) Endpoints {
+func NewEndpoints(svc Service, logger log.Logger, tracer stdopentracing.Tracer) Endpoints {
+
+	fieldOps := []string{"method"}
+	regSvcCounter := prometheus.NewCounterFrom(kitprometheus.CounterOpts{
+		Namespace: "Adexin",
+		Subsystem: "reg_service",
+		Name:      "request_count",
+		Help:      "Number of requests received",
+	}, fieldOps)
+
+	regSvcHist := prometheus.NewHistogramFrom(kitprometheus.HistogramOpts{
+		Namespace: "Adexin",
+		Subsystem: "reg_service",
+		Name:      "request_latency_microseconds",
+		Help:      "Number of requests received",
+	}, fieldOps)
+
+	svc = Metrics(regSvcCounter, regSvcHist)(svc)
+
 	var regEndpoint endpoint.Endpoint
 	{
 		regEndpoint = MakeRegEndpoint(svc)
@@ -255,12 +272,15 @@ func NewEnpoints(svc Service, logger log.Logger, tracer stdopentracing.Tracer) E
 	{
 		healthEnpoint = MakeRegHealthCheckEnpoint(svc)
 		healthEnpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Limit(time.Second), 1))(healthEnpoint)
-
+		healthEnpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(healthEnpoint)
+		healthEnpoint = opentracing.TraceServer(tracer, "RegServiceHealthCheck")(healthEnpoint)
+		healthEnpoint = LoggingMiddleware(logger)(healthEnpoint)
 	}
 
 	return Endpoints{
 		RegEndpoint:           regEndpoint,
 		UsernameValidEndpoint: usernameValidEndpoint,
 		EmailValidEndpoint:    emailValidEndpoint,
+		RegHealthCheckEnpoint: healthEnpoint,
 	}
 }
