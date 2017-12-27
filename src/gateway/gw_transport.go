@@ -5,16 +5,20 @@ import (
 	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
+	"TaskManager/src/svcdiscovery"
 )
 
-var consulAddress string
-var vaultSvcName string
-var regSvcName string
-var tag string
+var (
+	consulAddress string
+	vaultSvcName string
+	regSvcName string
+	tag string
+)
+
 
 func init() {
-	viper.AddConfigPath("src/gateway/config")
-	viper.SetConfigName("gw_conf")
+	viper.AddConfigPath("src/config")
+	viper.SetConfigName("app_conf")
 
 	err := viper.ReadInConfig()
 	if err != nil {
@@ -46,7 +50,7 @@ func MakeHttpHandler() http.Handler {
 // /registration
 func registration(writer http.ResponseWriter, request *http.Request) {
 
-	addr, err := ServiceDiscovery().Find(&consulAddress, &regSvcName, &tag)
+	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &regSvcName, &tag)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
@@ -74,7 +78,7 @@ func registration(writer http.ResponseWriter, request *http.Request) {
 
 // /validate
 func validate(writer http.ResponseWriter, request *http.Request) {
-	addr, err := ServiceDiscovery().Find(&consulAddress, &vaultSvcName, &tag)
+	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &vaultSvcName, &tag)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
@@ -104,7 +108,7 @@ func validate(writer http.ResponseWriter, request *http.Request) {
 func hash(writer http.ResponseWriter, r *http.Request) {
 
 	//Get service address
-	addr, err := ServiceDiscovery().Find(&consulAddress, &vaultSvcName, &tag)
+	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &vaultSvcName, &tag)
 
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)

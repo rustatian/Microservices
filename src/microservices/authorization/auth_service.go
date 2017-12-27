@@ -82,7 +82,6 @@ func (newService) AuthHealtCheck() bool {
 	return true
 }
 
-// endpoints wrapper
 type Endpoints struct {
 	LoginEndpoint  endpoint.Endpoint
 	LogoutEnpoint  endpoint.Endpoint
