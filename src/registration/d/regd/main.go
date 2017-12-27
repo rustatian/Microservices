@@ -12,14 +12,17 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"TaskManager/src/svcdiscovery"
+	"net"
 )
 
 func main() {
 	var (
 		consulAddr = flag.String("consul.addr", "localhost", "consul address")
-		consulPort = flag.String("consul.port", ":8500", "consul port")
+		consulPort = flag.String("consul.port", "8500", "consul port")
 		regAddr    = flag.String("reg.addr", "localhost", "reg address")
-		regPort    = flag.String("reg.port", ":10002", "reg port")
+		regPort    = flag.String("reg.port", "10002", "reg port")
+		svcName    = flag.String("service.name", "regsvc", "Registration microservice name")
 	)
 
 	flag.Parse()
@@ -45,15 +48,16 @@ func main() {
 	}
 
 	r := registration.MakeRegHttpHandler(ctx, endpoint, logger)
-	reg := registration.Register(*consulAddr, *consulPort, *regAddr, *regPort, logger)
+	reg := svcdiscovery.ServiceDiscovery().Registration(*consulAddr, *consulPort, *regAddr, *regPort, *svcName, logger)
 
 	errChan := make(chan error)
+	defer close(errChan)
 
 	go func() {
 		ilog.Println("Starting server at port", *regPort)
 		reg.Register()
 		handler := r
-		errChan <- http.ListenAndServe(*regPort, handler)
+		errChan <- http.ListenAndServe(net.JoinHostPort(*regAddr, *regPort), handler)
 	}()
 
 	go func() {

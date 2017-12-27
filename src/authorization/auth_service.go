@@ -73,14 +73,8 @@ func (newService) Login(username, password string) (mesg string, roles []string,
 	}
 }
 
-//TODO remove token from db
 func (newService) Logout() string {
 	return "Logout Succeed"
-}
-
-//TODO check username
-func (newService) ValidateUsername() bool {
-	return true
 }
 
 //TODO create full check
@@ -141,7 +135,7 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "Adexin",
 		Subsystem: "auth_service",
-		Name: "request_count",
+		Name: "request_latency",
 		Help: "Total duration of requests in microseconds",
 	}, fieldKeys)
 
@@ -175,7 +169,6 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 		healthEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(healthEndpoint)
 		healthEndpoint = opentracing.TraceServer(trace, "health")(healthEndpoint)
 		healthEndpoint = LoggingMiddleware(log.With(logger, "method", "health"))(healthEndpoint)
-
 	}
 
 	return Endpoints{

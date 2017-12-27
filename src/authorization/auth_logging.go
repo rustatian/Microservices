@@ -30,7 +30,7 @@ type loggingMiddleware struct {
 func (mw loggingMiddleware) Login(username string, password string) (mesg string, roles []string, err error) {
 	defer func(begin time.Time) {
 		mw.logger.Log(
-			"function", "Login",
+			"function", "login",
 			"mesg", mesg,
 			"roles", strings.Join(roles, ","),
 			"took", time.Since(begin),
@@ -43,11 +43,24 @@ func (mw loggingMiddleware) Login(username string, password string) (mesg string
 func (mw loggingMiddleware) Logout() (mesg string) {
 	defer func(begin time.Time) {
 		mw.logger.Log(
-			"function", "Logout",
+			"function", "logout",
 			"result", mesg,
 			"took", time.Since(begin),
 		)
 	}(time.Now())
 	mesg = mw.Service.Logout()
+	return
+}
+
+func (mw loggingMiddleware) AuthHealtCheck() (out bool) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"function", "health",
+			"result", true,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+
+	out = mw.Service.AuthHealtCheck()
 	return
 }
