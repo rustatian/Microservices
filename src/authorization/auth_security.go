@@ -16,8 +16,8 @@ import (
 var secret string
 
 func init() {
-	viper.AddConfigPath("src/authorization/config")
-	viper.SetConfigName("auth_srv_conf")
+	viper.AddConfigPath("src/config")
+	viper.SetConfigName("app_conf")
 
 	err := viper.ReadInConfig()
 	if err != nil {

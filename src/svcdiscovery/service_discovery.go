@@ -12,7 +12,7 @@ import (
 	"net"
 )
 
-type discovery interface {
+type Discovery interface {
 	Registration(consulAddr, consulPort, svcAddress, svcPort, svcName string, logger log.Logger) (registrar sd.Registrar)
 	Find(consulAddress, serviceName, tag *string) (address string, e error)
 }
@@ -24,7 +24,7 @@ var (
 	once     sync.Once
 )
 
-func ServiceDiscovery() discovery {
+func ServiceDiscovery() Discovery {
 	once.Do(func() {
 		instance = &serviceDiscovery{}
 	})
@@ -64,7 +64,7 @@ func(s *serviceDiscovery) Registration(consulAddr, consulPort, svcAddress, svcPo
 		Notes:    "Basic health checks",
 	}
 
-	port, _ := strconv.Atoi(svcPort) // remove :10000 -> 10000
+	port, _ := strconv.Atoi(svcPort)
 	uuid, _ := gorand.UUID()
 
 	asr := api.AgentServiceRegistration{
