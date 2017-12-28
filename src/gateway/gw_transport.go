@@ -12,6 +12,7 @@ var (
 	consulAddress string
 	vaultSvcName string
 	regSvcName string
+	authSvcName string
 	tag string
 )
 
@@ -30,6 +31,7 @@ func init() {
 	//Service names
 	vaultSvcName = viper.GetString("services.vault")
 	regSvcName = viper.GetString("services.registration")
+	authSvcName = viper.GetString("services.auth")
 
 	tag = viper.GetString("tags.tag")
 }
@@ -43,8 +45,88 @@ func MakeHttpHandler() http.Handler {
 
 	//reg path
 	r.Methods("POST").HandlerFunc(registration).Path("/registration")
+	r.Methods("POST").HandlerFunc(regvalemail).Path("/registration/email")
+	r.Methods("POST").HandlerFunc(regvaluser).Path("/registration/user")
+
+	//auth
+	r.Methods("POST").HandlerFunc(login).Path("/login")
 
 	return r
+}
+
+//authorization
+func login(writer http.ResponseWriter, request *http.Request) {
+	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &authSvcName, &tag)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte(err.Error()))
+	}
+
+	resp, err := http.Post(addr + "/login", "application/json", request.Body)
+
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte(err.Error()))
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte(err.Error()))
+	}
+
+	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+	writer.Write(data)
+}
+
+//registration
+func regvaluser(writer http.ResponseWriter, request *http.Request) {
+	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &regSvcName, &tag)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte(err.Error()))
+	}
+
+	resp, err := http.Post(addr + "/registration/user", "application/json", request.Body)
+
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte(err.Error()))
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte(err.Error()))
+	}
+
+	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+	writer.Write(data)
+}
+
+//registration
+func regvalemail(writer http.ResponseWriter, request *http.Request) {
+	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &regSvcName, &tag)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte(err.Error()))
+	}
+
+	resp, err := http.Post(addr + "/registration/email", "application/json", request.Body)
+
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte(err.Error()))
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte(err.Error()))
+	}
+
+	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+	writer.Write(data)
 }
 
 // /registration
@@ -57,7 +139,7 @@ func registration(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	resp, err := http.Post(addr+"/registration", "application/json", request.Body)
+	resp, err := http.Post(addr + "/registration", "application/json", request.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -85,7 +167,7 @@ func validate(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	resp, err := http.Post(addr+"/validate", "application/json", request.Body)
+	resp, err := http.Post(addr + "/validate", "application/json", request.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)

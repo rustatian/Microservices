@@ -20,7 +20,7 @@ func MakeAuthHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logge
 	}
 
 	//auth login
-	r.Methods("POST").Path("/auth/login").Handler(httptransport.NewServer(
+	r.Methods("POST").Path("/login").Handler(httptransport.NewServer(
 		endpoint.LoginEndpoint,
 		decodeLoginRequest,
 		encodeLoginResponse,
@@ -28,7 +28,7 @@ func MakeAuthHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logge
 	))
 
 	//auth logout
-	r.Methods("POST").Path("/auth/logout").Handler(httptransport.NewServer(
+	r.Methods("POST").Path("/logout").Handler(httptransport.NewServer(
 		endpoint.LogoutEnpoint,
 		decodeLogoutRequest,
 		encodeLogoutResponce,

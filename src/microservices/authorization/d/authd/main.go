@@ -1,7 +1,7 @@
 package main
 
 import (
-	"TaskManager/src/authorization"
+	"TaskManager/src/microservices/authorization"
 	"context"
 	"flag"
 	"fmt"
