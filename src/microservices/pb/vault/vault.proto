@@ -1,0 +1,34 @@
+syntax="proto3";
+
+package pb.vault;
+
+service Vault {
+    rpc Hash(HashRequest) returns (HashResponce) {}
+    rpc Validate(ValidateRequest) returns (ValidateResponce) {}
+    rpc HealthCheck(HealthRequest) returns (HealthResponse) {}
+};
+
+message HashRequest {
+    string password = 1;
+}
+
+message HashResponce {
+    string hash = 1;
+    string err = 2;
+}
+
+message ValidateRequest {
+    string hash = 1;
+}
+
+message ValidateResponce {
+    bool valid = 1;
+    string err = 2;
+}
+
+message HealthRequest {
+
+}
+message HealthResponse {
+    bool status = 1;
+}
