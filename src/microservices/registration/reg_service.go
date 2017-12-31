@@ -33,7 +33,7 @@ var (
 )
 
 func init() {
-	viper.AddConfigPath("src/config")
+	viper.AddConfigPath("../config")
 	viper.SetConfigName("app_conf")
 
 	err := viper.ReadInConfig()
@@ -121,7 +121,7 @@ func (newRegService) UsernameValidation(username string) (bool, error) {
 
 	defer db.Close()
 
-	sel, err := db.Prepare("SELECT ID FROM USER WHERE Username = ?;")
+	sel, err := db.Prepare("SELECT ID FROM User WHERE Username = ?;")
 	if err != nil {
 		panic(err.Error())
 		return false, err
@@ -145,7 +145,7 @@ func (newRegService) EmailValidation(email string) (bool, error) {
 
 	defer db.Close()
 
-	sel, err := db.Prepare("SELECT ID FROM USER WHERE email = ?;")
+	sel, err := db.Prepare("SELECT ID FROM User WHERE email = ?;")
 	if err != nil {
 		panic(err.Error())
 		return false, err

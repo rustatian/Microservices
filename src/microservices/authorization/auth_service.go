@@ -22,7 +22,7 @@ import (
 var dbCreds string
 
 func init() {
-	viper.AddConfigPath("src/config")
+	viper.AddConfigPath("../config")
 	viper.SetConfigName("app_conf")
 
 	err := viper.ReadInConfig()

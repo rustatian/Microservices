@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"TaskManager/src/svcdiscovery"
+	"github.com/rs/cors"
 )
 
 var (
@@ -39,6 +40,12 @@ func init() {
 func MakeHttpHandler() http.Handler {
 	r := mux.NewRouter()
 
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowCredentials: true,
+		AllowedMethods:   []string{"GET", "HEAD", "POST", "PUT", "OPTIONS"},
+	})
+
 	//vault path
 	r.Methods("POST").HandlerFunc(hash).Path("/hash")
 	r.Methods("POST").HandlerFunc(validate).Path("/validate")
@@ -51,7 +58,9 @@ func MakeHttpHandler() http.Handler {
 	//auth
 	r.Methods("POST").HandlerFunc(login).Path("/login")
 
-	return r
+	handler := c.Handler(r)
+
+	return handler
 }
 
 //authorization
