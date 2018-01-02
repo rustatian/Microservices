@@ -1,15 +1,15 @@
 package svcdiscovery
 
 import (
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/sd"
 	consulsd "github.com/go-kit/kit/sd/consul"
 	"github.com/hashicorp/consul/api"
-	"strconv"
-	"sync"
-	"github.com/go-kit/kit/sd"
-	"github.com/go-kit/kit/log"
-	"os"
 	"github.com/leonelquinteros/gorand"
 	"net"
+	"os"
+	"strconv"
+	"sync"
 )
 
 type Discovery interface {
@@ -17,7 +17,7 @@ type Discovery interface {
 	Find(consulAddress, serviceName, tag *string) (address string, e error)
 }
 
-type serviceDiscovery struct {}
+type serviceDiscovery struct{}
 
 var (
 	instance *serviceDiscovery
@@ -44,7 +44,7 @@ func client(consulAddr *string) *consulsd.Client {
 	return &client
 }
 
-func(s *serviceDiscovery) Registration(consulAddr, consulPort, svcAddress, svcPort, svcName string, logger log.Logger) (registrar sd.Registrar) {
+func (s *serviceDiscovery) Registration(consulAddr, consulPort, svcAddress, svcPort, svcName string, logger log.Logger) (registrar sd.Registrar) {
 
 	consulConfig := api.DefaultConfig()
 	if len(consulAddr) > 0 {
@@ -78,7 +78,6 @@ func(s *serviceDiscovery) Registration(consulAddr, consulPort, svcAddress, svcPo
 
 	return consulsd.NewRegistrar(consulsd.NewClient(consulClient), &asr, logger)
 
-
 }
 
 func (s *serviceDiscovery) Find(consulAddress, serviceName, tag *string) (address string, e error) {
@@ -87,9 +86,7 @@ func (s *serviceDiscovery) Find(consulAddress, serviceName, tag *string) (addres
 		panic(err)
 	}
 
-	addrs := "http://" + srventry[0].Node.Address + ":" + strconv.Itoa(srventry[0].Service.Port)
+	addrs := "http://" + srventry[0].Service.Address + ":" + strconv.Itoa(srventry[0].Service.Port)
 
 	return addrs, nil
 }
-
-

@@ -2,29 +2,42 @@ package authorization
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
+	"github.com/leonelquinteros/gorand"
 	"github.com/spf13/viper"
 	"gopkg.in/redis.v3"
+	"os"
 	"time"
-	"github.com/leonelquinteros/gorand"
-	"encoding/json"
 )
 
 var secret string
 
 func init() {
-	viper.AddConfigPath("src/config")
-	viper.SetConfigName("app_conf")
+	if dev := os.Getenv("DEV"); dev == "False" {
+		viper.AddConfigPath("config")
+		viper.SetConfigName("app_conf")
 
-	err := viper.ReadInConfig()
-	if err != nil {
-		panic(err)
+		err := viper.ReadInConfig()
+		if err != nil {
+			panic(err)
+		}
+
+		secret = viper.GetString("SecretKey.Key")
+	} else {
+		viper.AddConfigPath("config")
+		viper.SetConfigName("app_conf")
+
+		err := viper.ReadInConfig()
+		if err != nil {
+			panic(err)
+		}
+
+		secret = viper.GetString("SecretKey.Key")
 	}
-
-	secret = viper.GetString("SecretKey.Key")
 }
 
 // Signing method
@@ -43,6 +56,10 @@ func JwtLoginEndpoint(log log.Logger) endpoint.Middleware {
 			}
 
 			resp := response.(LoginResponce)
+			if resp.Err != "" {
+				return nil, err
+			}
+
 			err = loginHandler(req.Username, &resp, log)
 			return resp, err
 		}
@@ -110,12 +127,11 @@ func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 	resp.TokenString = JsonWebToken
 
 	errChan := make(chan error)
-	defer close(errChan)
 
 	go func() {
 		client := redis.NewClient(
 			&redis.Options{
-				Addr:     "localhost:6379",
+				Addr:     "127.0.0.1:6379",
 				Password: "",
 				DB:       0,
 			})

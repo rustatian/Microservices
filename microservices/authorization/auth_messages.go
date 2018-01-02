@@ -27,3 +27,8 @@ type HealthRequest struct{}
 type HealthResponse struct {
 	Status bool `json:"status"`
 }
+
+type validateResponse struct {
+	Valid bool   `json:"valid"`
+	Err   string `json:"err, omitempty"`
+}

@@ -1,41 +1,60 @@
 package gateway
 
 import (
+	"TaskManager/svcdiscovery"
+	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
-	"TaskManager/svcdiscovery"
-	"github.com/rs/cors"
+	"os"
 )
 
 var (
 	consulAddress string
-	vaultSvcName string
-	regSvcName string
-	authSvcName string
-	tag string
+	vaultSvcName  string
+	regSvcName    string
+	authSvcName   string
+	tag           string
 )
 
 func init() {
+	if dev := os.Getenv("DEV"); dev == "False" {
+		viper.AddConfigPath("config")
+		viper.SetConfigName("app_conf")
 
-	viper.AddConfigPath("../config")
-	viper.SetConfigName("app_conf")
+		err := viper.ReadInConfig()
+		if err != nil {
+			panic(err)
+		}
 
-	err := viper.ReadInConfig()
-	if err != nil {
-		panic(err)
+		consulAddress = viper.GetString("consul.addressProd")
+
+		//Service names
+		vaultSvcName = viper.GetString("services.vault")
+		regSvcName = viper.GetString("services.registration")
+		authSvcName = viper.GetString("services.auth")
+
+		tag = viper.GetString("tags.tag")
+	} else {
+		viper.AddConfigPath("config")
+		viper.SetConfigName("app_conf")
+
+		err := viper.ReadInConfig()
+		if err != nil {
+			panic(err)
+		}
+
+		consulAddress = viper.GetString("consul.addressDev")
+
+		//Service names
+		vaultSvcName = viper.GetString("services.vault")
+		regSvcName = viper.GetString("services.registration")
+		authSvcName = viper.GetString("services.auth")
+
+		tag = viper.GetString("tags.tag")
 	}
-
-	consulAddress = viper.GetString("consul.address")
-
-	//Service names
-	vaultSvcName = viper.GetString("services.vault")
-	regSvcName = viper.GetString("services.registration")
-	authSvcName = viper.GetString("services.auth")
-
-	tag = viper.GetString("tags.tag")
-
 }
 
 func MakeHttpHandler() http.Handler {
@@ -70,19 +89,22 @@ func login(writer http.ResponseWriter, request *http.Request) {
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
+		return
 	}
 
-	resp, err := http.Post(addr + "/login", "application/json", request.Body)
+	resp, err := http.Post(addr+"/login", "application/json; charset=utf-8", request.Body)
 
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
+		return
 	}
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
+		return
 	}
 
 	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -95,19 +117,22 @@ func regvaluser(writer http.ResponseWriter, request *http.Request) {
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
+		return
 	}
 
-	resp, err := http.Post(addr + "/registration/user", "application/json", request.Body)
+	resp, err := http.Post(addr+"/registration/user", "application/json", request.Body)
 
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
+		return
 	}
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
+		return
 	}
 
 	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -120,19 +145,22 @@ func regvalemail(writer http.ResponseWriter, request *http.Request) {
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
+		return
 	}
 
-	resp, err := http.Post(addr + "/registration/email", "application/json", request.Body)
+	resp, err := http.Post(addr+"/registration/email", "application/json", request.Body)
 
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
+		return
 	}
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
+		return
 	}
 
 	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -149,7 +177,7 @@ func registration(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	resp, err := http.Post(addr + "/registration", "application/json", request.Body)
+	resp, err := http.Post(addr+"/registration", "application/json; charset=utf-8", request.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -177,7 +205,7 @@ func validate(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	resp, err := http.Post(addr + "/validate", "application/json", request.Body)
+	resp, err := http.Post(addr+"/validate", "application/json", request.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -207,11 +235,14 @@ func hash(writer http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println(addr)
+
 	resp, err := http.Post(addr+"/hash", "application/json", r.Body)
 	defer resp.Body.Close()
 
 	if err != nil {
 		writer.Write([]byte(err.Error()))
+		return
 	}
 
 	data, err := ioutil.ReadAll(resp.Body)

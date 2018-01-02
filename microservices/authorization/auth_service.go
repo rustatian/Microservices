@@ -1,36 +1,68 @@
 package authorization
 
 import (
+	"TaskManager/svcdiscovery"
+	"bytes"
 	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
 	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/go-kit/kit/ratelimit"
 	"github.com/go-kit/kit/tracing/opentracing"
+	_ "github.com/go-sql-driver/mysql"
 	stdopentracing "github.com/opentracing/opentracing-go"
-	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/sony/gobreaker"
-	"golang.org/x/time/rate"
-	"time"
-	_ "github.com/go-sql-driver/mysql"
-	"database/sql"
 	"github.com/spf13/viper"
-	"fmt"
+	"golang.org/x/time/rate"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"time"
 )
 
-var dbCreds string
+var (
+	dbCreds      string
+	consAddr     string
+	vaultSvcName string
+	svcTag       string
+)
 
 func init() {
-	viper.AddConfigPath("../config")
-	viper.SetConfigName("app_conf")
+	if dev := os.Getenv("DEV"); dev == "False" {
+		viper.AddConfigPath("config")
+		viper.SetConfigName("app_conf")
 
-	err := viper.ReadInConfig()
-	if err != nil {
-		panic(err)
+		err := viper.ReadInConfig()
+		if err != nil {
+			panic(err)
+		}
+
+		dbCreds = viper.GetString("DbCreds.serverProd")
+		consAddr = viper.GetString("Consul.addressProd")
+		vaultSvcName = viper.GetString("services.vault") //to get hash from pass
+		svcTag = viper.GetString("tags.tag")
+
+	} else {
+		viper.AddConfigPath("config")
+		viper.SetConfigName("app_conf")
+
+		err := viper.ReadInConfig()
+		if err != nil {
+			panic(err)
+		}
+
+		dbCreds = viper.GetString("DbCreds.serverDev")
+		consAddr = viper.GetString("Consul.addressDev")
+		vaultSvcName = viper.GetString("services.vault") //to get hash from pass
+		svcTag = viper.GetString("tags.tag")
+
 	}
 
-	dbCreds = viper.GetString("DbCreds.server")
 }
 
 type Service interface {
@@ -47,6 +79,7 @@ type ServiceMiddleware func(svc Service) Service
 
 type newService struct{}
 
+//TODO password check
 func (newService) Login(username, password string) (mesg string, roles []string, err error) {
 	db, err := sql.Open("mysql", dbCreds)
 	if err != nil {
@@ -64,12 +97,43 @@ func (newService) Login(username, password string) (mesg string, roles []string,
 	}
 	defer sel.Close()
 
-	var id int
-	err = sel.QueryRow(username).Scan(&id)
+	var resId int
+
+	err = sel.QueryRow(username).Scan(&resId)
 	if err != nil {
 		return "Login Failed", nil, fmt.Errorf("user does't exist")
 	} else {
-		return "Login succeed", []string{"Admin", "User"}, nil
+
+		pass, err := db.Prepare("SELECT PasswordHash FROM User WHERE ID = ?")
+		defer pass.Close()
+
+		var hash string
+		pass.QueryRow(resId).Scan(&hash)
+
+		var vresp validateResponse
+
+		var req []byte = []byte(`{"password":"` + password + `", "hash": "` + hash + `"}`)
+		addr, err := svcdiscovery.ServiceDiscovery().Find(&consAddr, &vaultSvcName, &svcTag)
+		if err != nil {
+			return "", nil, err
+		}
+
+		resp, err := http.Post(addr+"/validate", "application/json; charset=utf-8", bytes.NewBuffer(req))
+		if err != nil {
+			return "Login request failed, password error", nil, err
+		}
+
+		body, err := ioutil.ReadAll(resp.Body)
+		err = json.Unmarshal(body, &vresp)
+
+		if vresp.Err != "" || vresp.Valid == false {
+			return "Login failed, password validate error", nil, fmt.Errorf("password validation error")
+		}
+		if err != nil {
+			return "Login failed, password validate error", nil, err
+		}
+
+		return "Login succeed, password ok", []string{"Admin", "User"}, nil
 	}
 }
 
@@ -127,17 +191,16 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
 		Namespace: "Adexin",
 		Subsystem: "auth_service",
-		Name: "request_count",
-		Help: "Number of requests received",
+		Name:      "request_count",
+		Help:      "Number of requests received",
 	}, fieldKeys)
 
 	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 		Namespace: "Adexin",
 		Subsystem: "auth_service",
-		Name: "request_latency",
-		Help: "Total duration of requests in microseconds",
+		Name:      "request_latency",
+		Help:      "Total duration of requests in microseconds",
 	}, fieldKeys)
-
 
 	svc = Metrics(requestCount, requestLatency)(svc)
 

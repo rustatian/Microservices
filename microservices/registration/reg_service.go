@@ -6,45 +6,61 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"time"
 
+	"TaskManager/svcdiscovery"
 	"bytes"
 	"encoding/json"
 	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/metrics/prometheus"
 	"github.com/go-kit/kit/ratelimit"
 	"github.com/go-kit/kit/tracing/opentracing"
 	stdopentracing "github.com/opentracing/opentracing-go"
+	kitprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/sony/gobreaker"
 	"github.com/spf13/viper"
 	"golang.org/x/time/rate"
-	"io"
 	"io/ioutil"
 	"net/http"
-	"TaskManager/src/svcdiscovery"
-	"github.com/go-kit/kit/metrics/prometheus"
-	kitprometheus "github.com/prometheus/client_golang/prometheus"
+	"os"
 )
 
 var (
-	dbCreds  string
-	consAddr string
-	svcName  string
-	svcTag   string
+	dbCreds      string
+	consAddr     string
+	vaultSvcName string
+	svcTag       string
 )
 
 func init() {
-	viper.AddConfigPath("../config")
-	viper.SetConfigName("app_conf")
+	if dev := os.Getenv("DEV"); dev == "False" {
+		viper.AddConfigPath("config")
+		viper.SetConfigName("app_conf")
 
-	err := viper.ReadInConfig()
-	if err != nil {
-		panic(err)
+		err := viper.ReadInConfig()
+		if err != nil {
+			panic(err)
+		}
+
+		dbCreds = viper.GetString("DbCreds.serverProd")
+		consAddr = viper.GetString("Consul.addressProd")
+		vaultSvcName = viper.GetString("services.vault") //to get hash from pass
+		svcTag = viper.GetString("tags.tag")
+	} else {
+		viper.AddConfigPath("config")
+		viper.SetConfigName("app_conf")
+
+		err := viper.ReadInConfig()
+		if err != nil {
+			panic(err)
+		}
+
+		dbCreds = viper.GetString("DbCreds.serverDev")
+		consAddr = viper.GetString("Consul.addressDev")
+		vaultSvcName = viper.GetString("services.vault") //to get hash from pass
+		svcTag = viper.GetString("tags.tag")
 	}
 
-	dbCreds = viper.GetString("DbCreds.server")
-	consAddr = viper.GetString("Consul.address")
-	svcName = viper.GetString("services.vault")
-	svcTag = viper.GetString("tags.tag")
 }
 
 type Service interface {
@@ -62,6 +78,7 @@ type newRegService struct{}
 
 type ServiceMiddleware func(svc Service) Service
 
+//TODO marshall to structs
 func (newRegService) Registration(username, fullname, email, password string, isDisabled bool) (ok bool, e error) {
 	db, err := sql.Open("mysql", dbCreds)
 	if err != nil {
@@ -72,30 +89,17 @@ func (newRegService) Registration(username, fullname, email, password string, is
 	var hresp hashResponse
 	var req []byte = []byte(`{"password":"` + password + `"}`)
 
-	addr, err := svcdiscovery.ServiceDiscovery().Find(&consAddr, &svcName, &svcTag)
+	addr, err := svcdiscovery.ServiceDiscovery().Find(&consAddr, &vaultSvcName, &svcTag)
 	if err != nil {
 		return false, err
 	}
 
-	c := make(chan io.ReadCloser)
-	chErr := make(chan error)
-
-	go func() {
-		resp, err := http.Post(addr + "/hash", "application/json", bytes.NewBuffer(req))
-		if err != nil {
-			chErr <- err
-		}
-		chErr <- nil
-		c <- resp.Body
-	}()
-
-	err = <-chErr
+	resp, err := http.Post(addr+"/hash", "application/json; charset=utf-8", bytes.NewBuffer(req))
 	if err != nil {
 		return false, err
 	}
 
-	body, err := ioutil.ReadAll(<-c)
-
+	body, err := ioutil.ReadAll(resp.Body)
 	err = json.Unmarshal(body, &hresp)
 
 	if hresp.Err != "" || err != nil {
