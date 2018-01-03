@@ -2,12 +2,12 @@ package registration
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/go-kit/kit/log"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
-	"net/http"
-	"encoding/json"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"net/http"
 )
 
 //TODO replace nils
@@ -25,14 +25,14 @@ func MakeRegHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logger
 		options...,
 	))
 
-	r.Methods("POST").Path("/validate/user").Handler(httptransport.NewServer(
+	r.Methods("POST").Path("/registration/user").Handler(httptransport.NewServer(
 		endpoint.UsernameValidEndpoint,
 		decodeUsernameValRequest,
 		encodeUsernameValResponce,
 		options...,
 	))
 
-	r.Methods("POST").Path("/validate/email").Handler(httptransport.NewServer(
+	r.Methods("POST").Path("/registration/email").Handler(httptransport.NewServer(
 		endpoint.EmailValidEndpoint,
 		decodeEmailValidationRequest,
 		encodeEmailValidationResponce,
@@ -64,9 +64,15 @@ func decodeRegRequest(ctx context.Context, r *http.Request) (request interface{}
 
 func encodeRegResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) error {
 	if resp, ok := responce.(RegResponce); ok {
+		if resp.Status == true {
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(resp)
+			return nil
+		}
+
 		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		return json.NewEncoder(w).Encode(resp)
+		json.NewEncoder(w).Encode(resp)
+		return nil
 
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -84,8 +90,14 @@ func decodeUsernameValRequest(ctx context.Context, r *http.Request) (interface{}
 
 func encodeUsernameValResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) error {
 	if resp, ok := responce.(UsernameValidationResponce); ok {
+		if resp.Status == true {
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(resp)
+			return nil
+		}
+
 		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		//w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		json.NewEncoder(w).Encode(resp)
 		return nil
 	} else {
@@ -104,8 +116,13 @@ func decodeEmailValidationRequest(ctx context.Context, r *http.Request) (interfa
 
 func encodeEmailValidationResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) error {
 	if resp, ok := responce.(EmailValidationResponce); ok {
+		if resp.Status == true {
+			w.WriteHeader(http.StatusConflict)
+			//w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			json.NewEncoder(w).Encode(resp)
+		}
 		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		//w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		json.NewEncoder(w).Encode(resp)
 		return nil
 	} else {
@@ -113,7 +130,6 @@ func encodeEmailValidationResponce(ctx context.Context, w http.ResponseWriter, r
 		return json.NewEncoder(w).Encode(ok)
 	}
 }
-
 
 func decodeRegHealthCheckRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	//var req HealthRequest
@@ -127,7 +143,7 @@ func decodeRegHealthCheckRequest(ctx context.Context, r *http.Request) (interfac
 func encodeRegHealthCheckResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) error {
 	if resp, ok := responce.(HealthResponse); ok {
 		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		//w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		json.NewEncoder(w).Encode(resp)
 		return nil
 	} else {
@@ -136,11 +152,9 @@ func encodeRegHealthCheckResponce(ctx context.Context, w http.ResponseWriter, re
 	}
 }
 
-
-
 func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	w.WriteHeader(http.StatusInternalServerError)
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	//w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"error": err.Error(),

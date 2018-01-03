@@ -20,3 +20,8 @@ type validateResponse struct {
 	Valid bool   `json:"valid"`
 	Err   string `json:"err, omitempty"`
 }
+
+type usernameValidationResponce struct {
+	Status bool   `json:"status"`
+	Err    string `json:"err, omitempty"`
+}

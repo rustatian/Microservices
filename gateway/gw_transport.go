@@ -86,6 +86,7 @@ func MakeHttpHandler() http.Handler {
 //authorization
 func login(writer http.ResponseWriter, request *http.Request) {
 	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &authSvcName, &tag)
+
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
@@ -107,7 +108,7 @@ func login(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+	writer.WriteHeader(resp.StatusCode)
 	writer.Write(data)
 }
 
@@ -129,13 +130,15 @@ func regvaluser(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	data, err := ioutil.ReadAll(resp.Body)
+
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
 		return
 	}
 
-	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+	//writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+	writer.WriteHeader(resp.StatusCode)
 	writer.Write(data)
 }
 
@@ -163,7 +166,7 @@ func regvalemail(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+	writer.WriteHeader(resp.StatusCode)
 	writer.Write(data)
 }
 
@@ -192,7 +195,7 @@ func registration(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+	writer.WriteHeader(resp.StatusCode)
 	writer.Write(data)
 }
 
@@ -220,7 +223,7 @@ func validate(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+	writer.WriteHeader(resp.StatusCode)
 	writer.Write(data)
 }
 
@@ -252,7 +255,7 @@ func hash(writer http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+	writer.WriteHeader(resp.StatusCode)
 	writer.Write(data)
 
 }

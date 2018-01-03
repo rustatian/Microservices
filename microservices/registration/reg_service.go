@@ -206,7 +206,7 @@ func MakeUserValEndpoint(svc Service) endpoint.Endpoint {
 
 func MakeEmailValEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := response.(EmailValidationRequest)
+		req := request.(EmailValidationRequest)
 
 		exist, err := svc.EmailValidation(req.Email)
 		if err != nil {

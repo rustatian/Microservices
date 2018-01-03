@@ -36,9 +36,10 @@ func main() {
 
 	// HTTP transport
 	go func() {
-		logger.Log("transport", "HTTP", "addr", net.JoinHostPort(gwAddr, *httpPort))
+		logger.Log("transport", "HTTPS", "addr", net.JoinHostPort(gwAddr, *httpPort))
 		handler := r
 		var loggetRoute http.Handler = handlers.LoggingHandler(os.Stdout, handler)
+		//errc <- http.ListenAndServeTLS(net.JoinHostPort(gwAddr, *httpPort),"config/fullchain.pem","config/privkey.pem", loggetRoute)
 		errc <- http.ListenAndServe(net.JoinHostPort(gwAddr, *httpPort), loggetRoute)
 	}()
 
