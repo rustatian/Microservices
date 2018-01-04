@@ -79,7 +79,6 @@ type ServiceMiddleware func(svc Service) Service
 
 type newService struct{}
 
-//TODO password check
 func (newService) Login(username, password string) (mesg string, roles []string, err error) {
 	db, err := sql.Open("mysql", dbCreds)
 	if err != nil {

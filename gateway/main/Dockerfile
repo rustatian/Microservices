@@ -4,4 +4,4 @@ ENV DEV False
 ADD gwd gwd
 ADD config config
 EXPOSE 8000 8000
-ENTRYPOINT ["/gwd"]
+CMD ["./gwd"]

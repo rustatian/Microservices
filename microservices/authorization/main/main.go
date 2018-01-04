@@ -20,7 +20,7 @@ import (
 
 func main() {
 	var (
-		consulAddr = flag.String("consul.addr", "localhost", "consul address")
+		consulAddr = flag.String("consul.addr", "127.0.0.1", "consul address")
 		consulPort = flag.String("consul.port", "8500", "consul port")
 		//authAddr   = flag.String("auth.addr", "localhost", "auth address")
 		authPort = flag.String("auth.port", "10001", "auth port")
