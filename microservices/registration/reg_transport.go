@@ -65,18 +65,18 @@ func decodeRegRequest(ctx context.Context, r *http.Request) (request interface{}
 func encodeRegResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) error {
 	if resp, ok := responce.(RegResponce); ok {
 		if resp.Status == true {
-			w.WriteHeader(http.StatusConflict)
+			w.WriteHeader(http.StatusOK)
 			json.NewEncoder(w).Encode(resp)
 			return nil
 		}
 
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(resp)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(resp.Err)
 		return nil
 
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
-		return json.NewEncoder(w).Encode(ok)
+		return json.NewEncoder(w).Encode(resp.Err)
 	}
 }
 
@@ -102,7 +102,7 @@ func encodeUsernameValResponce(ctx context.Context, w http.ResponseWriter, respo
 		return nil
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
-		return json.NewEncoder(w).Encode(ok)
+		return json.NewEncoder(w).Encode(resp.Err)
 	}
 }
 
@@ -127,7 +127,7 @@ func encodeEmailValidationResponce(ctx context.Context, w http.ResponseWriter, r
 		return nil
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
-		return json.NewEncoder(w).Encode(ok)
+		return json.NewEncoder(w).Encode(resp.Err)
 	}
 }
 
@@ -148,7 +148,7 @@ func encodeRegHealthCheckResponce(ctx context.Context, w http.ResponseWriter, re
 		return nil
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
-		return json.NewEncoder(w).Encode(ok)
+		return json.NewEncoder(w).Encode(resp)
 	}
 }
 
