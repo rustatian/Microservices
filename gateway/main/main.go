@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/go-kit/kit/log"
 	"github.com/gorilla/handlers"
+	ilog "log"
 	"net"
 	"net/http"
 	"os"
@@ -14,14 +15,27 @@ import (
 	"syscall"
 )
 
+func init() {
+	ilog.SetFlags(ilog.Lmicroseconds)
+}
+
 func main() {
 	var (
 		httpPort = flag.String("http.port", "8000", "Address for HTTP server")
+		useTLS   = flag.Bool("use.tls", false, "TLS for https")
 	)
 
 	flag.Parse()
 
-	gwAddr, _ := externalIP()
+	gwAddr, _ := externalIP() // get own local ip for send to consul
+
+	//collector := &gateway.Collector{
+	//	Processor: &gateway.Fake{},
+	//	MaxBatchSize:5,
+	//	WorkerCount:3,
+	//	QueueSize:10000,
+	//	FlushInterval:5*time.Second,
+	//}
 
 	var logger log.Logger
 	{
@@ -39,8 +53,14 @@ func main() {
 		logger.Log("transport", "HTTPS", "addr", net.JoinHostPort(gwAddr, *httpPort))
 		handler := r
 		var loggetRoute http.Handler = handlers.LoggingHandler(os.Stdout, handler)
-		//errc <- http.ListenAndServeTLS(net.JoinHostPort(gwAddr, *httpPort),"config/fullchain.pem","config/privkey.pem", loggetRoute)
-		errc <- http.ListenAndServe(net.JoinHostPort(gwAddr, *httpPort), loggetRoute)
+
+		//http.Serve(loggetRoute, gateway.NewCollectorHandler(collector))
+
+		if *useTLS {
+			errc <- http.ListenAndServeTLS(net.JoinHostPort(gwAddr, *httpPort), "config/fullchain.pem", "config/privkey.pem", loggetRoute)
+		} else {
+			errc <- http.ListenAndServe(net.JoinHostPort(gwAddr, *httpPort), loggetRoute)
+		}
 	}()
 
 	go func() {

@@ -120,7 +120,7 @@ func MakeHealtEndpoint(svc Service) endpoint.Endpoint {
 //
 func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) Endpoints {
 	//kf := func(token *stdjwt.Token) (interface{}, error) {
-	//	return []byte("%kxkstXG%@uEG4^fj_gt8*XK?tzG@ddY#+wAd"), nil
+	//	return []byte(""), nil
 	//}
 
 	//declare metrics

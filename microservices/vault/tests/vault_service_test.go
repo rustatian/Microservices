@@ -1,7 +1,7 @@
 package tests
 
 import (
-	"TaskManager/src/vault"
+	"TaskManager/microservices/vault"
 	"context"
 	"testing"
 )
