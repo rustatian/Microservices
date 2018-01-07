@@ -92,8 +92,10 @@ func login(writer http.ResponseWriter, request *http.Request) {
 		writer.Write([]byte(err.Error()))
 		return
 	}
+	defer request.Body.Close()
 
 	resp, err := http.Post(addr+"/login", "application/json; charset=utf-8", request.Body)
+	defer resp.Body.Close()
 
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -115,6 +117,8 @@ func login(writer http.ResponseWriter, request *http.Request) {
 //registration
 func regvaluser(writer http.ResponseWriter, request *http.Request) {
 	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &regSvcName, &tag)
+	defer request.Body.Close()
+
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
@@ -122,6 +126,7 @@ func regvaluser(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	resp, err := http.Post(addr+"/registration/user", "application/json", request.Body)
+	defer resp.Body.Close()
 
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -145,6 +150,8 @@ func regvaluser(writer http.ResponseWriter, request *http.Request) {
 //registration
 func regvalemail(writer http.ResponseWriter, request *http.Request) {
 	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &regSvcName, &tag)
+	defer request.Body.Close()
+
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
@@ -152,6 +159,7 @@ func regvalemail(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	resp, err := http.Post(addr+"/registration/email", "application/json", request.Body)
+	defer resp.Body.Close()
 
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -172,8 +180,8 @@ func regvalemail(writer http.ResponseWriter, request *http.Request) {
 
 // /registration
 func registration(writer http.ResponseWriter, request *http.Request) {
-
 	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &regSvcName, &tag)
+	defer request.Body.Close()
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
@@ -182,6 +190,7 @@ func registration(writer http.ResponseWriter, request *http.Request) {
 
 	resp, err := http.Post(addr+"/registration", "application/json; charset=utf-8", request.Body)
 	defer resp.Body.Close()
+
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
@@ -202,6 +211,8 @@ func registration(writer http.ResponseWriter, request *http.Request) {
 // /validate
 func validate(writer http.ResponseWriter, request *http.Request) {
 	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &vaultSvcName, &tag)
+	defer request.Body.Close()
+
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
@@ -210,6 +221,7 @@ func validate(writer http.ResponseWriter, request *http.Request) {
 
 	resp, err := http.Post(addr+"/validate", "application/json", request.Body)
 	defer resp.Body.Close()
+
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
@@ -229,9 +241,8 @@ func validate(writer http.ResponseWriter, request *http.Request) {
 
 // /hash
 func hash(writer http.ResponseWriter, r *http.Request) {
-
-	//Get service address
 	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &vaultSvcName, &tag)
+	defer r.Body.Close()
 
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
