@@ -116,7 +116,7 @@ func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 	claims["iat"] = time.Now()
 	claims["iss"] = "Valery_P"
 	claims["name"] = username
-	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
+	claims["exp"] = time.Now().Add(time.Hour * 48).Unix()
 	claims["jti"] = jti
 	JsonWebToken, err := token.SignedString([]byte(secret))
 	tokenString = JsonWebToken[:20] + "..."
