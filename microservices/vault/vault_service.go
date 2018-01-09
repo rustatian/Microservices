@@ -32,6 +32,7 @@ type ServiceMiddleware func(svc Service) Service
 type newVaultService struct{}
 
 func (newVaultService) Hash(ctx context.Context, password string) (string, error) {
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
@@ -70,7 +71,6 @@ func (e Endpoints) Hash(ctx context.Context, password string) (string, error) {
 	return hashResp.Hash, nil
 }
 
-// Validate used for
 func (e Endpoints) Validate(ctx context.Context, password, hash string) (bool, error) {
 	req := validateRequest{Password: password, Hash: hash}
 	resp, err := e.ValidateEndpoint(ctx, req)
@@ -84,7 +84,6 @@ func (e Endpoints) Validate(ctx context.Context, password, hash string) (bool, e
 	return validateResp.Valid, nil
 }
 
-//
 func MakeHashEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(hashRequest)
@@ -96,7 +95,6 @@ func MakeHashEndpoint(svc Service) endpoint.Endpoint {
 	}
 }
 
-//
 func MakeValidateEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(validateRequest)
@@ -117,7 +115,6 @@ func MakeHealtEndpoint(svc Service) endpoint.Endpoint {
 	}
 }
 
-//
 func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) Endpoints {
 	//kf := func(token *stdjwt.Token) (interface{}, error) {
 	//	return []byte(""), nil

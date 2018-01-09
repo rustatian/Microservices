@@ -45,6 +45,7 @@ func main() {
 	}
 
 	errc := make(chan error)
+	//stopChan := make(chan struct{})
 
 	r := gateway.MakeHttpHandler()
 
@@ -65,9 +66,12 @@ func main() {
 
 	go func() {
 		c := make(chan os.Signal)
-		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 		errc <- fmt.Errorf("%s", <-c)
+		//close(stopChan) //close channel
 	}()
+
+	//collector.Run(stopChan) //Stop collector
 
 	chErr := <-errc
 	logger.Log("exit", chErr)

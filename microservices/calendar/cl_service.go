@@ -17,14 +17,17 @@ func NewService() TaskService {
 	return tcalendarService{}
 }
 
+//Not implemented
 func (s tcalendarService) Add() {
 
 }
 
+//Not implemented
 func (s tcalendarService) Edit() {
 
 }
 
+//Not implemented
 func (s tcalendarService) Delete() {
 
 }
@@ -42,4 +45,6 @@ func (s tcalendarService) GetTasks(username string, tr timeRange) (resp []string
 	default:
 
 	}
+
+	return []string{"", ""}, nil
 }
