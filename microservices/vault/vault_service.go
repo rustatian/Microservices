@@ -32,7 +32,6 @@ type ServiceMiddleware func(svc Service) Service
 type newVaultService struct{}
 
 func (newVaultService) Hash(ctx context.Context, password string) (string, error) {
-
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
