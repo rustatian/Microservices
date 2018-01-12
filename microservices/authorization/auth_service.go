@@ -13,7 +13,7 @@ import (
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/go-kit/kit/ratelimit"
 	"github.com/go-kit/kit/tracing/opentracing"
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/sony/gobreaker"
@@ -80,7 +80,7 @@ type ServiceMiddleware func(svc Service) Service
 type newService struct{}
 
 func (newService) Login(username, password string) (mesg string, roles []string, err error) {
-	db, err := sql.Open("mysql", dbCreds)
+	db, err := sql.Open("postgres", dbCreds)
 	if err != nil {
 		return "", nil, err
 	}
@@ -90,7 +90,7 @@ func (newService) Login(username, password string) (mesg string, roles []string,
 		return "", nil, err
 	}
 
-	sel, err := db.Prepare("SELECT ID FROM User WHERE Username = ?;")
+	sel, err := db.Prepare(`SELECT id FROM "User" WHERE Username = $1;`)
 	if err != nil {
 		return "", nil, err
 	}
@@ -103,7 +103,7 @@ func (newService) Login(username, password string) (mesg string, roles []string,
 		return "Login Failed", nil, fmt.Errorf("user does't exist")
 	} else {
 
-		pass, err := db.Prepare("SELECT PasswordHash FROM User WHERE ID = ?")
+		pass, err := db.Prepare(`SELECT passwordhash FROM "User" WHERE id = $1`)
 		defer pass.Close()
 
 		var hash string

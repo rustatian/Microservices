@@ -3,7 +3,7 @@ package calendar
 type timeRange int
 
 const (
-	TDay   timeRange = iota
+	TDay timeRange = iota
 	TWeek
 	TMonth
 	TYear
@@ -15,11 +15,16 @@ type TasksRequest struct {
 	Err       string `json:"err, omitempty"`
 }
 
+type Task struct {
+	TaskId          int
+	TaskCaption     string
+	TaskDescription string
+	From            uint64
+	To              uint64
+	Err             string
+}
+
 type TasksResponce struct {
-	TaskId          int    `json:"task_id"`
-	TaskCaption     string `json:"task_caption"`
-	TaskDescription string `json:"task_description"`
-	From            int64  `json:"from"`
-	To              int64  `json:"to"`
-	Err             string `json:"err,omitempty"`
+	Tasks string `json:"tasks"`
+	Err   string `json:"err, omitempty"`
 }

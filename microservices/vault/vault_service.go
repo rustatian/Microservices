@@ -115,10 +115,6 @@ func MakeHealtEndpoint(svc Service) endpoint.Endpoint {
 }
 
 func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) Endpoints {
-	//kf := func(token *stdjwt.Token) (interface{}, error) {
-	//	return []byte(""), nil
-	//}
-
 	//declare metrics
 	fieldKeys := []string{"method"}
 	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
@@ -139,7 +135,6 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 	var hashEndpoint endpoint.Endpoint
 	{
 		hashEndpoint = MakeHashEndpoint(svc)
-		//hashEndpoint = jwt.NewParser(kf, stdjwt.SigningMethodHS256, jwt.StandardClaimsFactory)(hashEndpoint)
 		hashEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(hashEndpoint)
 		hashEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(hashEndpoint)
 		hashEndpoint = opentracing.TraceServer(trace, "hash")(hashEndpoint)
@@ -148,7 +143,6 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 	var validateEndpoint endpoint.Endpoint
 	{
 		validateEndpoint = MakeValidateEndpoint(svc)
-		//validateEndpoint = jwt.NewParser(kf, stdjwt.SigningMethodHS256, jwt.StandardClaimsFactory)(validateEndpoint)
 		validateEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(validateEndpoint)
 		validateEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(validateEndpoint)
 		validateEndpoint = opentracing.TraceServer(trace, "validate")(validateEndpoint)

@@ -86,22 +86,21 @@ func JwtLogoutEndpoint(log log.Logger) endpoint.Middleware {
 //Just for experiment (Redis)
 func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 	var (
-		jti         string
 		tokenString string
 	)
-
-	defer func() {
-		log.Log(
-			"username", username,
-			"jti", jti,
-			"token", tokenString,
-		)
-	}()
 
 	uuid, err := gorand.UUID()
 	if err != nil {
 		panic(err.Error())
 	}
+
+	defer func() {
+		log.Log(
+			"username", username,
+			"jti", uuid,
+			"token", tokenString,
+		)
+	}()
 
 	token := jwt.New(method)
 	claims := token.Claims.(jwt.MapClaims)
@@ -117,7 +116,7 @@ func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 	claims["iss"] = "Valery_P"
 	claims["name"] = username
 	claims["exp"] = time.Now().Add(time.Hour * 48).Unix()
-	claims["jti"] = jti
+	claims["jti"] = uuid
 	JsonWebToken, err := token.SignedString([]byte(secret))
 	tokenString = JsonWebToken[:20] + "..."
 	if err != nil {
