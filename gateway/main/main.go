@@ -22,7 +22,7 @@ func init() {
 func main() {
 	var (
 		httpPort = flag.String("http.port", "8000", "Address for HTTP server")
-		useTLS   = flag.Bool("use.tls", false, "TLS for https")
+		useTLS   = flag.Bool("use.tls", true, "TLS for https")
 	)
 
 	flag.Parse()
@@ -58,7 +58,7 @@ func main() {
 		//http.Serve(loggetRoute, gateway.NewCollectorHandler(collector))
 
 		if *useTLS {
-			errc <- http.ListenAndServeTLS(net.JoinHostPort(gwAddr, *httpPort), "config/fullchain.pem", "config/privkey.pem", loggetRoute)
+			errc <- http.ListenAndServeTLS(net.JoinHostPort(gwAddr, *httpPort), "config/server.crt", "config/server.key", loggetRoute)
 		} else {
 			errc <- http.ListenAndServe(net.JoinHostPort(gwAddr, *httpPort), loggetRoute)
 		}
