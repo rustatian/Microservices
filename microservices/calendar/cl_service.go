@@ -13,7 +13,6 @@ import (
 	"github.com/go-kit/kit/ratelimit"
 	"github.com/go-kit/kit/tracing/opentracing"
 	"github.com/lib/pq"
-	_ "github.com/lib/pq"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/sony/gobreaker"
@@ -61,9 +60,7 @@ func init() {
 
 type TaskService interface {
 	GetTasks(ctx context.Context, username string, tr timeRange) (resp string, e error)
-	AddTask()
-	EditTask()
-	DeleteTask()
+	HealthChecks() bool
 }
 
 type ServiceMiddleware func(svc TaskService) TaskService
@@ -98,7 +95,7 @@ func (s tCalendarService) GetTasks(ctx context.Context, username string, tr time
 
 		_, err = db.Exec(`SET search_path = "xdev_site"`)
 		if err != nil {
-			return "", err
+			return "", err.(*pq.Error)
 		}
 		sel, err := db.Query(`SELECT taskid, taskcaption, taskdescription, tfrom, tto FROM calendartasks WHERE userid = (SELECT id FROM "User" WHERE username = $1) AND tfrom >= $2 AND tto <= $3`, username, prevMnt, futureMnt)
 		if err != nil {
@@ -106,7 +103,7 @@ func (s tCalendarService) GetTasks(ctx context.Context, username string, tr time
 		}
 		defer sel.Close()
 
-		var tasks []Task
+		var tasks []task
 
 		for sel.Next() {
 			var taskId int
@@ -117,12 +114,12 @@ func (s tCalendarService) GetTasks(ctx context.Context, username string, tr time
 
 			err = sel.Scan(&taskId, &taskCaption, &taskDescription, &from, &to)
 			if err != nil {
-				//Hmm, it's good //TODO
+				//Hmm, it's good?? //TODO
 				data, _ := json.Marshal(&tasks)
 				return string(data), err
 			}
 
-			tasks = append(tasks, Task{
+			tasks = append(tasks, task{
 				TaskId:          taskId,
 				TaskCaption:     taskCaption,
 				TaskDescription: taskDescription,
@@ -147,27 +144,17 @@ func (s tCalendarService) GetTasks(ctx context.Context, username string, tr time
 	return "", nil
 }
 
-//Not implemented
-func (s tCalendarService) AddTask() {
-
-}
-
-//Not implemented
-func (s tCalendarService) EditTask() {
-
-}
-
-//Not implemented
-func (s tCalendarService) DeleteTask() {
-
+func (s tCalendarService) HealthChecks() (hc bool) {
+	return true
 }
 
 type Endpoints struct {
 	TaskCalendarEnpoint endpoint.Endpoint
+	HealthChecks        endpoint.Endpoint
 }
 
 func (e Endpoints) GetTasks(ctx context.Context, username string, tr timeRange) (resp string, er error) {
-	req := TasksRequest{
+	req := tasksRequest{
 		TimeRange: int(tr),
 		User:      username,
 	}
@@ -177,26 +164,32 @@ func (e Endpoints) GetTasks(ctx context.Context, username string, tr timeRange) 
 		return "", err
 	}
 
-	tcresp := rsp.(TasksResponce)
+	tcresp := rsp.(tasksResponce)
 	if tcresp.Err != "" {
 		return "", err
 	}
 	return "", nil
 }
 
+func MakeHealthEndpoint(svc TaskService) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		v := svc.HealthChecks()
+		return healthResponse{Status: v}, nil
+	}
+}
+
 func MakeTasksEndpoint(svc TaskService) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(TasksRequest)
+		req := request.(tasksRequest)
 		v, err := svc.GetTasks(ctx, req.User, timeRange(req.TimeRange))
 		if err != nil {
-			return TasksResponce{Err: err.Error()}, err
+			return tasksResponce{Err: err.Error()}, err
 		}
-		return TasksResponce{Tasks: v, Err: ""}, nil
+		return tasksResponce{Tasks: v, Err: ""}, nil
 	}
 }
 
 func NewEndpoints(svc TaskService, logger log.Logger, trace stdopentracing.Tracer) Endpoints {
-
 	fieldKeys := []string{"method"}
 	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
 		Namespace: "Adexin",
@@ -216,15 +209,25 @@ func NewEndpoints(svc TaskService, logger log.Logger, trace stdopentracing.Trace
 	var getTasksEnpoint endpoint.Endpoint
 	{
 		getTasksEnpoint = MakeTasksEndpoint(svc)
-		getTasksEnpoint = LoggingMiddleware(logger)(getTasksEnpoint)
 		getTasksEnpoint = jwt.NewParser(keyFunc(), signingMethod, jwt.MapClaimsFactory)(getTasksEnpoint)
 		getTasksEnpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(getTasksEnpoint)
 		getTasksEnpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{Timeout: time.Duration(time.Second * 2)}))(getTasksEnpoint)
 		getTasksEnpoint = opentracing.TraceServer(trace, "GetTasks")(getTasksEnpoint)
-
+		getTasksEnpoint = LoggingMiddleware(log.With(logger, "method", "GetTasks"))(getTasksEnpoint)
 	}
+
+	var healthEndpoint endpoint.Endpoint
+	{
+		healthEndpoint = MakeHealthEndpoint(svc)
+		healthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(healthEndpoint)
+		healthEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{Timeout: time.Duration(time.Second * 2)}))(healthEndpoint)
+		healthEndpoint = opentracing.TraceServer(trace, "Health")(healthEndpoint)
+		healthEndpoint = LoggingMiddleware(log.With(logger, "method", "health"))(healthEndpoint)
+	}
+
 	return Endpoints{
 		getTasksEnpoint,
+		healthEndpoint,
 	}
 }
 

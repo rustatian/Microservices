@@ -1,6 +1,7 @@
 package svcdiscovery
 
 import (
+	"fmt"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/sd"
 	consulsd "github.com/go-kit/kit/sd/consul"
@@ -83,10 +84,12 @@ func (s *serviceDiscovery) Registration(consulAddr, consulPort, svcAddress, svcP
 func (s *serviceDiscovery) Find(consulAddress, serviceName, tag *string) (address string, e error) {
 	srventry, _, err := (*client(consulAddress)).Service(*serviceName, *tag, true, &api.QueryOptions{})
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
 
-	addrs := "http://" + srventry[0].Service.Address + ":" + strconv.Itoa(srventry[0].Service.Port)
+	if len(srventry) != 0 {
+		return "http://" + srventry[0].Service.Address + ":" + strconv.Itoa(srventry[0].Service.Port), nil
+	}
 
-	return addrs, nil
+	return "", fmt.Errorf("error: no connected services")
 }

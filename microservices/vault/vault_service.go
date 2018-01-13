@@ -152,7 +152,7 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 	{
 		healthEndpoint = MakeHealtEndpoint(svc)
 		healthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(healthEndpoint)
-		healthEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(healthEndpoint)
+		healthEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{Timeout: time.Duration(time.Second * 2)}))(healthEndpoint)
 		healthEndpoint = opentracing.TraceServer(trace, "health")(healthEndpoint)
 		healthEndpoint = LoggingMiddleware(log.With(logger, "method", "health"))(healthEndpoint)
 	}

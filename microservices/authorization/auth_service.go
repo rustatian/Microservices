@@ -13,6 +13,7 @@ import (
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/go-kit/kit/ratelimit"
 	"github.com/go-kit/kit/tracing/opentracing"
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
@@ -90,6 +91,11 @@ func (newService) Login(username, password string) (mesg string, roles []string,
 		return "", nil, err
 	}
 
+	_, err = db.Exec(`SET search_path = "xdev_site"`)
+	if err != nil {
+		return "", nil, err.(*pq.Error)
+	}
+
 	sel, err := db.Prepare(`SELECT id FROM "User" WHERE Username = $1;`)
 	if err != nil {
 		return "", nil, err
@@ -103,7 +109,15 @@ func (newService) Login(username, password string) (mesg string, roles []string,
 		return "Login Failed", nil, fmt.Errorf("user does't exist")
 	} else {
 
+		_, err = db.Exec(`SET search_path = "xdev_site"`)
+		if err != nil {
+			return "", nil, err.(*pq.Error)
+		}
+
 		pass, err := db.Prepare(`SELECT passwordhash FROM "User" WHERE id = $1`)
+		if err != nil {
+			return "", nil, err.(*pq.Error)
+		}
 		defer pass.Close()
 
 		var hash string
@@ -111,6 +125,7 @@ func (newService) Login(username, password string) (mesg string, roles []string,
 
 		var vresp validateResponse
 
+		//TODO create struct
 		var req []byte = []byte(`{"password":"` + password + `", "hash": "` + hash + `"}`)
 		addr, err := svcdiscovery.ServiceDiscovery().Find(&consAddr, &vaultSvcName, &svcTag)
 		if err != nil {

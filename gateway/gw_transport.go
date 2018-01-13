@@ -16,6 +16,7 @@ var (
 	vaultSvcName  string
 	regSvcName    string
 	authSvcName   string
+	tcalSvcName   string
 	tag           string
 )
 
@@ -35,6 +36,7 @@ func init() {
 		vaultSvcName = viper.GetString("services.vault")
 		regSvcName = viper.GetString("services.registration")
 		authSvcName = viper.GetString("services.auth")
+		tcalSvcName = viper.GetString("services.tcal")
 
 		tag = viper.GetString("tags.tag")
 	} else {
@@ -52,6 +54,7 @@ func init() {
 		vaultSvcName = viper.GetString("services.vault")
 		regSvcName = viper.GetString("services.registration")
 		authSvcName = viper.GetString("services.auth")
+		tcalSvcName = viper.GetString("services.tcal")
 
 		tag = viper.GetString("tags.tag")
 	}
@@ -88,7 +91,45 @@ func MakeHttpHandler() http.Handler {
 
 //task calendar
 func tcal(writer http.ResponseWriter, request *http.Request) {
+	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &tcalSvcName, &tag)
 
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte(err.Error()))
+		return
+	}
+	defer request.Body.Close()
+	request.Close = true
+
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", addr+"/taskManager/getTasks", request.Body)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte(err.Error()))
+		return
+	}
+	defer req.Body.Close()
+
+	req.Header = request.Header
+	resp, err := client.Do(req)
+
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte(err.Error()))
+		return
+	}
+	defer resp.Body.Close()
+	resp.Close = true
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte(err.Error()))
+		return
+	}
+
+	writer.WriteHeader(resp.StatusCode)
+	writer.Write(data)
 }
 
 //authorization

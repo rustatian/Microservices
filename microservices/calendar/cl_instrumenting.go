@@ -32,3 +32,13 @@ func (mw metricsMiddleware) GetTasks(ctx context.Context, username string, tr ti
 	resp, er = mw.TaskService.GetTasks(ctx, username, tr)
 	return
 }
+
+func (mw metricsMiddleware) HealthChecks() (res bool) {
+	defer func(begin time.Time) {
+		lvs := []string{"method", "Health"}
+		mw.requestCount.With(lvs...).Add(1)
+		mw.requestLatency.With(lvs...).Observe(time.Since(begin).Seconds() * 100000)
+	}(time.Now())
+	res = mw.TaskService.HealthChecks()
+	return
+}

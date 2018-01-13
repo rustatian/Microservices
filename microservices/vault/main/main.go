@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-kit/kit/log"
+	"github.com/gorilla/handlers"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	"net"
 	"net/http"
@@ -58,7 +59,8 @@ func main() {
 	go func() {
 		reg.Register()
 		logger.Log("transport", "HTTP", "addr", ":"+*vaultPort)
-		errc <- http.ListenAndServe(":"+*vaultPort, r)
+		var loggetRoute http.Handler = handlers.LoggingHandler(os.Stdout, r)
+		errc <- http.ListenAndServe(":"+*vaultPort, loggetRoute)
 	}()
 
 	logger.Log("exit", <-errc)

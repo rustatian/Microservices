@@ -1,13 +1,10 @@
 package registration
 
 import (
-	"context"
-	"database/sql"
-	_ "github.com/go-sql-driver/mysql"
-	"time"
-
 	"TaskManager/svcdiscovery"
 	"bytes"
+	"context"
+	"database/sql"
 	"encoding/json"
 	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
@@ -15,6 +12,8 @@ import (
 	"github.com/go-kit/kit/metrics/prometheus"
 	"github.com/go-kit/kit/ratelimit"
 	"github.com/go-kit/kit/tracing/opentracing"
+	"github.com/lib/pq"
+	_ "github.com/lib/pq"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	kitprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/sony/gobreaker"
@@ -23,6 +22,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"time"
 )
 
 var (
@@ -80,13 +80,14 @@ type ServiceMiddleware func(svc Service) Service
 
 //TODO marshall to structs
 func (newRegService) Registration(username, fullname, email, password string, isDisabled bool) (ok bool, e error) {
-	db, err := sql.Open("mysql", dbCreds)
+	db, err := sql.Open("postgres", dbCreds)
 	if err != nil {
 		return false, err
 	}
 	defer db.Close()
 
 	var hresp hashResponse
+	//TODO create struct
 	var req []byte = []byte(`{"password":"` + password + `"}`)
 
 	addr, err := svcdiscovery.ServiceDiscovery().Find(&consAddr, &vaultSvcName, &svcTag)
@@ -106,29 +107,36 @@ func (newRegService) Registration(username, fullname, email, password string, is
 		return false, err
 	}
 
-	stmIns, err := db.Prepare("INSERT INTO User (Username, FullName, email, PasswordHash, IsDisabled) VALUES (?, ?, ?, ?, ?);")
-	defer stmIns.Close()
-
-	_, err = stmIns.Exec(username, fullname, email, hresp.Hash, false)
+	_, err = db.Exec(`SET search_path = "xdev_site"`)
 	if err != nil {
-		return false, err
+		return false, err.(*pq.Error)
 	}
+
+	stmIns, err := db.Query(`INSERT INTO "User" (username, fullname, email, passwordhash, isdisabled) VALUES ($1, $2, $3, $4, $5);`, username, fullname, email, hresp.Hash, false)
+	if err != nil {
+		return false, err.(*pq.Error)
+	}
+	defer stmIns.Close()
 
 	return true, nil
 }
 
 func (newRegService) UsernameValidation(username string) (bool, error) {
-	db, err := sql.Open("mysql", dbCreds)
+	db, err := sql.Open("postgres", dbCreds)
 	if err != nil {
 		return false, err
 	}
 
 	defer db.Close()
 
-	sel, err := db.Prepare("SELECT ID FROM User WHERE Username = ?;")
+	_, err = db.Exec(`SET search_path = "xdev_site"`)
+	if err != nil {
+		return false, err.(*pq.Error)
+	}
+	sel, err := db.Prepare(`SELECT id FROM "User" WHERE username = $1;`)
 	if err != nil {
 		panic(err.Error())
-		return false, err
+		return false, err.(*pq.Error)
 	}
 	defer sel.Close()
 
@@ -142,17 +150,22 @@ func (newRegService) UsernameValidation(username string) (bool, error) {
 }
 
 func (newRegService) EmailValidation(email string) (bool, error) {
-	db, err := sql.Open("mysql", dbCreds)
+	db, err := sql.Open("postgres", dbCreds)
 	if err != nil {
 		return false, err
 	}
 
 	defer db.Close()
 
-	sel, err := db.Prepare("SELECT ID FROM User WHERE email = ?;")
+	_, err = db.Exec(`SET search_path = "xdev_site"`)
+	if err != nil {
+		return false, err.(*pq.Error)
+	}
+
+	sel, err := db.Prepare(`SELECT id FROM "User" WHERE email = $1;`)
 	if err != nil {
 		panic(err.Error())
-		return false, err
+		return false, err.(*pq.Error)
 	}
 	defer sel.Close()
 

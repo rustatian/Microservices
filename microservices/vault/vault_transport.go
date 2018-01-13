@@ -25,7 +25,6 @@ func MakeVaultHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logg
 		DecodeHashRequest,
 		EncodeHashResponce,
 		options...,
-	//append(options, httptransport.ServerBefore(jwt.HTTPToContext()))..., //auth
 	))
 
 	r.Methods("POST").Path("/validate").Handler(httptransport.NewServer(

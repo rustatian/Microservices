@@ -3,6 +3,7 @@ package calendar
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/go-kit/kit/auth/jwt"
 	"github.com/go-kit/kit/log"
 	httptransport "github.com/go-kit/kit/transport/http"
@@ -27,20 +28,12 @@ func MakeTcHttpHandler(ctx context.Context, endpoint Endpoints, logger log.Logge
 		append(options, httptransport.ServerBefore(jwt.HTTPToContext()))..., //auth
 	))
 
-	//r.Methods("POST").Path("/validate").Handler(httptransport.NewServer(
-	//	endpoint.ValidateEndpoint,
-	//	DecodeValidateRequest,
-	//	EncodeValidateResponce,
-	//	options...,
-	//))
-	//
-	////GET /health
-	//r.Methods("GET").Path("/health").Handler(httptransport.NewServer(
-	//	endpoint.VaultHealtEndpoint,
-	//	DecodeHealthRequest,
-	//	EncodeHealthResponce,
-	//	options...,
-	//))
+	r.Methods("GET").Path("/health").Handler(httptransport.NewServer(
+		endpoint.HealthChecks,
+		decodeHealthRequest,
+		encodeHealthResponce,
+		options...,
+	))
 
 	r.Path("/metrics").Handler(stdprometheus.Handler())
 
@@ -48,7 +41,7 @@ func MakeTcHttpHandler(ctx context.Context, endpoint Endpoints, logger log.Logge
 }
 
 func decodeGetTasksRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	var request TasksRequest
+	var request tasksRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		return nil, err
 	}
@@ -56,11 +49,34 @@ func decodeGetTasksRequest(ctx context.Context, r *http.Request) (interface{}, e
 }
 
 func encodeGetTasksResponce(ctx context.Context, w http.ResponseWriter, resp interface{}) error {
-	var responce = resp.(TasksResponce)
+	var responce = resp.(tasksResponce)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	if err := json.NewEncoder(w).Encode(&responce); err != nil {
 		return err
 	}
+	return nil
+}
+
+func decodeHealthRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	//var req healthRequest
+	//if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	//	return nil, err
+	//}
+	//return req, nil
+	return healthRequest{}, nil
+}
+
+func encodeHealthResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) (e error) {
+	resp, ok := responce.(healthResponse)
+	if !ok {
+		return fmt.Errorf("type conversion error in health encode responce")
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(&resp); err != nil {
+		return err
+	}
+
 	return nil
 }
 

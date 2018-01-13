@@ -9,13 +9,13 @@ const (
 	TYear
 )
 
-type TasksRequest struct {
+type tasksRequest struct {
 	User      string `json:"user"`
 	TimeRange int    `json:"time_range"`
 	Err       string `json:"err, omitempty"`
 }
 
-type Task struct {
+type task struct {
 	TaskId          int
 	TaskCaption     string
 	TaskDescription string
@@ -24,7 +24,14 @@ type Task struct {
 	Err             string
 }
 
-type TasksResponce struct {
+type tasksResponce struct {
 	Tasks string `json:"tasks"`
 	Err   string `json:"err, omitempty"`
+}
+
+//TODO Create health logic, check free memory, disk space
+type healthRequest struct{}
+
+type healthResponse struct {
+	Status bool `json:"status"`
 }
