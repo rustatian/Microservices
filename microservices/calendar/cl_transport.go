@@ -20,7 +20,7 @@ func MakeTcHttpHandler(ctx context.Context, endpoint Endpoints, logger log.Logge
 		httptransport.ServerErrorEncoder(encodeError),
 	}
 
-	r.Methods("POST").Path("/getTasks").Handler(httptransport.NewServer(
+	r.Methods("POST").Path("/taskManager/getTasks").Handler(httptransport.NewServer(
 		endpoint.TaskCalendarEnpoint,
 		decodeGetTasksRequest,
 		encodeGetTasksResponce,

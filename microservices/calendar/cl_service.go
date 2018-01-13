@@ -96,7 +96,14 @@ func (s tCalendarService) GetTasks(ctx context.Context, username string, tr time
 		prevMnt := time.Date(year, month-1, day, 0, 0, 0, 0, time.UTC).Unix()
 		futureMnt := time.Date(year, month+1, day, 0, 0, 0, 0, time.UTC).Unix()
 
+		_, err = db.Exec(`SET search_path = "xdev_site"`)
+		if err != nil {
+			return "", err
+		}
 		sel, err := db.Query(`SELECT taskid, taskcaption, taskdescription, tfrom, tto FROM calendartasks WHERE userid = (SELECT id FROM "User" WHERE username = $1) AND tfrom >= $2 AND tto <= $3`, username, prevMnt, futureMnt)
+		if err != nil {
+			return "", err
+		}
 		defer sel.Close()
 
 		var tasks []Task

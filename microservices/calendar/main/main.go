@@ -40,6 +40,7 @@ func main() {
 
 	tracer := stdopentracing.GlobalTracer()
 	reg := svcdiscovery.ServiceDiscovery().Registration(*consulAddr, *consulPort, tCalAddr, *tCalPort, *svcName, logger)
+	defer reg.Deregister()
 
 	endpoints := calendar.NewEndpoints(svc, logger, tracer)
 	r := calendar.MakeTcHttpHandler(ctx, endpoints, logger)
@@ -60,7 +61,6 @@ func main() {
 	}()
 
 	logger.Log("exit", <-errc)
-	reg.Deregister()
 }
 
 func externalIP() (string, error) {

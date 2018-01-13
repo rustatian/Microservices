@@ -78,9 +78,17 @@ func MakeHttpHandler() http.Handler {
 	//auth
 	r.Methods("POST").HandlerFunc(login).Path("/login")
 
+	//task calendar
+	r.Methods("POST").HandlerFunc(tcal).Path("/taskManager/getTasks")
+
 	handler := c.Handler(r)
 
 	return handler
+}
+
+//task calendar
+func tcal(writer http.ResponseWriter, request *http.Request) {
+
 }
 
 //authorization
@@ -93,15 +101,17 @@ func login(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	defer request.Body.Close()
+	request.Close = true
 
 	resp, err := http.Post(addr+"/login", "application/json; charset=utf-8", request.Body)
-	defer resp.Body.Close()
 
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
 		return
 	}
+	defer resp.Body.Close()
+	resp.Close = true
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -117,22 +127,22 @@ func login(writer http.ResponseWriter, request *http.Request) {
 //registration
 func regvaluser(writer http.ResponseWriter, request *http.Request) {
 	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &regSvcName, &tag)
-	defer request.Body.Close()
-
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
 		return
 	}
+	defer request.Body.Close()
+	request.Close = true
 
 	resp, err := http.Post(addr+"/registration/user", "application/json", request.Body)
-	defer resp.Body.Close()
-
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
 		return
 	}
+	defer resp.Body.Close()
+	resp.Close = true
 
 	data, err := ioutil.ReadAll(resp.Body)
 
@@ -150,22 +160,22 @@ func regvaluser(writer http.ResponseWriter, request *http.Request) {
 //registration
 func regvalemail(writer http.ResponseWriter, request *http.Request) {
 	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &regSvcName, &tag)
-	defer request.Body.Close()
-
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
 		return
 	}
+	defer request.Body.Close()
+	request.Close = true
 
 	resp, err := http.Post(addr+"/registration/email", "application/json", request.Body)
-	defer resp.Body.Close()
-
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
 		return
 	}
+	defer resp.Body.Close()
+	resp.Close = true
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -181,21 +191,22 @@ func regvalemail(writer http.ResponseWriter, request *http.Request) {
 // /registration
 func registration(writer http.ResponseWriter, request *http.Request) {
 	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &regSvcName, &tag)
-	defer request.Body.Close()
+
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
 		return
 	}
+	defer request.Body.Close()
 
 	resp, err := http.Post(addr+"/registration", "application/json; charset=utf-8", request.Body)
-	defer resp.Body.Close()
 
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
 		return
 	}
+	defer resp.Body.Close()
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -211,22 +222,22 @@ func registration(writer http.ResponseWriter, request *http.Request) {
 // /validate
 func validate(writer http.ResponseWriter, request *http.Request) {
 	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &vaultSvcName, &tag)
-	defer request.Body.Close()
-
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
 		return
 	}
+	defer request.Body.Close()
+	request.Close = true
 
 	resp, err := http.Post(addr+"/validate", "application/json", request.Body)
-	defer resp.Body.Close()
-
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
 		return
 	}
+	defer resp.Body.Close()
+	resp.Close = true
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -242,22 +253,23 @@ func validate(writer http.ResponseWriter, request *http.Request) {
 // /hash
 func hash(writer http.ResponseWriter, r *http.Request) {
 	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &vaultSvcName, &tag)
-	defer r.Body.Close()
-
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	defer r.Body.Close()
+	r.Close = true
 
 	fmt.Println(addr)
 
 	resp, err := http.Post(addr+"/hash", "application/json", r.Body)
-	defer resp.Body.Close()
 
 	if err != nil {
 		writer.Write([]byte(err.Error()))
 		return
 	}
+	defer resp.Body.Close()
+	resp.Close = true
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {

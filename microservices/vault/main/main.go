@@ -2,6 +2,7 @@ package main
 
 import (
 	"TaskManager/microservices/vault"
+	//"TaskManager/svcdiscovery"
 	"TaskManager/svcdiscovery"
 	"context"
 	"errors"
@@ -40,6 +41,7 @@ func main() {
 
 	tracer := stdopentracing.GlobalTracer()
 	reg := svcdiscovery.ServiceDiscovery().Registration(*consulAddr, *consulPort, vaultAddr, *vaultPort, *svcName, logger)
+	defer reg.Deregister()
 
 	endpoints := vault.NewEndpoints(svc, logger, tracer)
 	r := vault.MakeVaultHttpHandler(ctx, endpoints, logger)
@@ -60,7 +62,6 @@ func main() {
 	}()
 
 	logger.Log("exit", <-errc)
-	reg.Deregister()
 }
 
 func externalIP() (string, error) {
