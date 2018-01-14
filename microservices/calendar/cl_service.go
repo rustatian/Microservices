@@ -114,9 +114,7 @@ func (s tCalendarService) GetTasks(ctx context.Context, username string, tr time
 
 			err = sel.Scan(&taskId, &taskCaption, &taskDescription, &from, &to)
 			if err != nil {
-				//Hmm, it's good?? //TODO
-				data, _ := json.Marshal(&tasks)
-				return string(data), err
+				return "", err.(*pq.Error)
 			}
 
 			tasks = append(tasks, Task{
