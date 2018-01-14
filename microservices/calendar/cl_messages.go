@@ -15,17 +15,16 @@ type tasksRequest struct {
 	Err       string `json:"err, omitempty"`
 }
 
-type task struct {
-	TaskId          int
-	TaskCaption     string
-	TaskDescription string
-	From            uint64
-	To              uint64
-	Err             string
+type Task struct {
+	TaskId          int    `json:"task_id"`
+	TaskCaption     string `json:"task_caption"`
+	TaskDescription string `json:"task_description"`
+	From            uint64 `json:"from"`
+	To              uint64 `json:"to"`
 }
 
 type tasksResponce struct {
-	Tasks string `json:"tasks"`
+	Tasks string `json:"tasks, string"`
 	Err   string `json:"err, omitempty"`
 }
 

@@ -103,7 +103,7 @@ func (s tCalendarService) GetTasks(ctx context.Context, username string, tr time
 		}
 		defer sel.Close()
 
-		var tasks []task
+		var tasks []Task
 
 		for sel.Next() {
 			var taskId int
@@ -119,7 +119,7 @@ func (s tCalendarService) GetTasks(ctx context.Context, username string, tr time
 				return string(data), err
 			}
 
-			tasks = append(tasks, task{
+			tasks = append(tasks, Task{
 				TaskId:          taskId,
 				TaskCaption:     taskCaption,
 				TaskDescription: taskDescription,
