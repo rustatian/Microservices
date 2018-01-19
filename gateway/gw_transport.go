@@ -4,11 +4,11 @@ import (
 	"TaskManager/svcdiscovery"
 	"fmt"
 	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"github.com/rs/cors"
 )
 
 var (
@@ -67,6 +67,7 @@ func MakeHttpHandler() http.Handler {
 		AllowedOrigins:   []string{"*"},
 		AllowCredentials: true,
 		AllowedMethods:   []string{"GET", "HEAD", "POST", "PUT", "OPTIONS"},
+		AllowedHeaders:   []string{"*"},
 	})
 
 	//vault path

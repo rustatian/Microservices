@@ -2,7 +2,6 @@ package main
 
 import (
 	"TaskManager/microservices/vault"
-	//"TaskManager/svcdiscovery"
 	"TaskManager/svcdiscovery"
 	"context"
 	"errors"

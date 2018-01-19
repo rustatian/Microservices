@@ -22,7 +22,7 @@ func init() {
 func main() {
 	var (
 		httpPort = flag.String("http.port", "8000", "Address for HTTP server")
-		useTLS   = flag.Bool("use.tls", true, "TLS for https")
+		useTLS   = flag.Bool("use.tls", false, "TLS for https")
 	)
 
 	flag.Parse()

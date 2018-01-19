@@ -12,3 +12,15 @@
 
 # Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
 .glide/
+.idea/vcs.xml
+*.iml
+*.xml
+.idea/dataSources/c2abb67c-fd8f-4924-93e3-85c835904d1f/storage_v2/_src_/database/postgres.edMnLQ.meta
+.DS_Store
+.idea/dataSources/c2abb67c-fd8f-4924-93e3-85c835904d1f/storage_v2/_src_/database/postgres.edMnLQ/schema/public.abK9xQ.meta
+*.meta
+.idea/httpRequests/2018-01-14T021651.200.json
+.idea/httpRequests/2018-01-14T025943.500.json
+.idea/httpRequests/2018-01-14T030013.500.json
+.idea/httpRequests/2018-01-14T030014.500.json
+.idea/httpRequests/http-requests-log.http
