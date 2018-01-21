@@ -9,16 +9,16 @@ import (
 
 const ContextKey = "context"
 
-type VaultContext struct {
+type Context struct {
 	Log *logrus.Logger
 }
 
 type contextHandler struct {
-	context *VaultContext
+	context *Context
 	handler http.Handler
 }
 
-func NewContextHandler(ctx *VaultContext, next http.Handler) http.Handler {
+func NewContextHandler(ctx *Context, next http.Handler) http.Handler {
 	return contextHandler{ctx, next}
 }
 
@@ -29,9 +29,9 @@ func (c contextHandler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 	c.handler.ServeHTTP(writer, request)
 }
 
-func GetContext(request *http.Request) (*VaultContext, error) {
+func GetContext(request *http.Request) (*Context, error) {
 	c := request.Context().Value(ContextKey)
-	if value, ok := c.(*VaultContext); ok {
+	if value, ok := c.(*Context); ok {
 		return value, nil
 	}
 	return nil, errors.Errorf("context error")

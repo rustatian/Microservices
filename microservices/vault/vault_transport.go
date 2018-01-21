@@ -65,14 +65,19 @@ func DecodeValidateRequest(ctx context.Context, r *http.Request) (interface{}, e
 }
 
 func DecodeHealthRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	cont, err := GetContext(r)
+	contx, err := GetContext(r)
 	if err != nil {
-
+		contx.Log.WithFields(logrus.Fields{
+			"Error":   err.Error(),
+			"request": r,
+		}).Error("Decode health request error")
 	}
-	cont.Log.WithFields(logrus.Fields{
+
+	contx.Log.WithFields(logrus.Fields{
 		"Method":  "DecodeHealthRequest",
 		"request": r,
 	}).Info("Decode health request")
+
 	//var req healthRequest
 	//if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 	//	return nil, err

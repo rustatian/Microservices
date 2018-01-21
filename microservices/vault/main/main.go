@@ -32,7 +32,7 @@ func main() {
 	logg := logrus.New()
 	logg.Out = os.Stdout
 
-	ctx := &vault.VaultContext{
+	ctx := &vault.Context{
 		Log: logg,
 	}
 
