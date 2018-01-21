@@ -8,11 +8,12 @@ import (
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	stdprometheus "github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
 // Make Http Handler
-func MakeVaultHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logger) http.Handler {
+func MakeVaultHttpHandler(endpoint Endpoints, logger log.Logger) http.Handler {
 	r := mux.NewRouter()
 
 	options := []httptransport.ServerOption{
@@ -64,6 +65,14 @@ func DecodeValidateRequest(ctx context.Context, r *http.Request) (interface{}, e
 }
 
 func DecodeHealthRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	cont, err := GetContext(r)
+	if err != nil {
+
+	}
+	cont.Log.WithFields(logrus.Fields{
+		"Method":  "DecodeHealthRequest",
+		"request": r,
+	}).Info("Decode health request")
 	//var req healthRequest
 	//if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 	//	return nil, err

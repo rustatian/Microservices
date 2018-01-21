@@ -1,20 +1,20 @@
 package main
 
 import (
-	"TaskManager/microservices/vault"
-	"TaskManager/svcdiscovery"
-	"context"
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/ValeryPiashchynski/TaskManager/microservices/vault"
+	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
 	"github.com/go-kit/kit/log"
-	"github.com/gorilla/handlers"
 	stdopentracing "github.com/opentracing/opentracing-go"
+	"github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -28,7 +28,13 @@ func main() {
 	vaultAddr, _ := externalIP()
 
 	flag.Parse()
-	ctx := context.Background()
+
+	logg := logrus.New()
+	logg.Out = os.Stdout
+
+	ctx := &vault.VaultContext{
+		Log: logg,
+	}
 
 	var logger log.Logger
 	{
@@ -44,7 +50,14 @@ func main() {
 	defer reg.Deregister()
 
 	endpoints := vault.NewEndpoints(svc, logger, tracer)
-	r := vault.MakeVaultHttpHandler(ctx, endpoints, logger)
+	r := vault.MakeVaultHttpHandler(endpoints, logger)
+
+	srv := &http.Server{
+		Handler:      vault.NewContextHandler(ctx, r),
+		Addr:         vaultAddr + ":" + *vaultPort,
+		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  15 * time.Second,
+	}
 
 	// Interrupt handler.
 	errc := make(chan error)
@@ -58,8 +71,9 @@ func main() {
 	go func() {
 		reg.Register()
 		logger.Log("transport", "HTTP", "addr", ":"+*vaultPort)
-		var loggetRoute http.Handler = handlers.LoggingHandler(os.Stdout, r)
-		errc <- http.ListenAndServe(":"+*vaultPort, loggetRoute)
+		//var loggetRoute http.Handler = handlers.LoggingHandler(os.Stdout, r)
+		errc <- srv.ListenAndServe()
+		//errc <- http.ListenAndServe(":"+*vaultPort, loggetRoute)
 	}()
 
 	logger.Log("exit", <-errc)
