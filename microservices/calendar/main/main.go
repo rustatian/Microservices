@@ -1,8 +1,6 @@
 package main
 
 import (
-	"TaskManager/microservices/calendar"
-	"TaskManager/svcdiscovery"
 	"context"
 	"errors"
 	"flag"
@@ -15,6 +13,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
+	"github.com/ValeryPiashchynski/TaskManager/microservices/calendar"
 )
 
 func main() {

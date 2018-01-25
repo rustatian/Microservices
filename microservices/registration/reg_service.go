@@ -1,7 +1,6 @@
 package registration
 
 import (
-	"TaskManager/svcdiscovery"
 	"bytes"
 	"context"
 	"database/sql"
@@ -23,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
 )
 
 var (
@@ -135,7 +135,6 @@ func (newRegService) UsernameValidation(username string) (bool, error) {
 	}
 	sel, err := db.Prepare(`SELECT id FROM "User" WHERE username = $1;`)
 	if err != nil {
-		panic(err.Error())
 		return false, err.(*pq.Error)
 	}
 	defer sel.Close()
@@ -164,7 +163,6 @@ func (newRegService) EmailValidation(email string) (bool, error) {
 
 	sel, err := db.Prepare(`SELECT id FROM "User" WHERE email = $1;`)
 	if err != nil {
-		panic(err.Error())
 		return false, err.(*pq.Error)
 	}
 	defer sel.Close()
@@ -196,7 +194,7 @@ func MakeRegEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(RegRequest)
 
-		ok, err := svc.Registration(req.Username, req.Fullname, req.Email, req.Password, req.isDisabled)
+		ok, err := svc.Registration(req.Username, req.Fullname, req.Email, req.Password, req.IsDisabled)
 		if !ok {
 			return nil, err
 		}

@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"TaskManager/svcdiscovery"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/spf13/viper"
@@ -9,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"github.com/rs/cors"
+	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
 )
 
 var (

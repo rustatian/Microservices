@@ -10,6 +10,7 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"net/http"
+	"time"
 )
 
 // Make Http Handler
@@ -65,7 +66,9 @@ func DecodeValidateRequest(ctx context.Context, r *http.Request) (interface{}, e
 }
 
 func DecodeHealthRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+
 	contx, err := GetContext(r)
+
 	if err != nil {
 		contx.Log.WithFields(logrus.Fields{
 			"Error":   err.Error(),
@@ -74,9 +77,11 @@ func DecodeHealthRequest(ctx context.Context, r *http.Request) (interface{}, err
 	}
 
 	contx.Log.WithFields(logrus.Fields{
-		"Method":  "DecodeHealthRequest",
+		"time": time.Now().Format(time.RFC3339Nano),
+		"Method": "DecodeHealthRequest",
 		"request": r,
 	}).Info("Decode health request")
+
 
 	//var req healthRequest
 	//if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"TaskManager/gateway"
 	"errors"
 	"flag"
 	"fmt"
@@ -13,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"github.com/ValeryPiashchynski/TaskManager/gateway"
 )
 
 func init() {

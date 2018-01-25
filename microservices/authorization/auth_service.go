@@ -1,7 +1,6 @@
 package authorization
 
 import (
-	"TaskManager/svcdiscovery"
 	"bytes"
 	"context"
 	"database/sql"
@@ -24,6 +23,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
 )
 
 var (

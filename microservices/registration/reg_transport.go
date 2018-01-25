@@ -58,7 +58,7 @@ func decodeRegRequest(ctx context.Context, r *http.Request) (request interface{}
 		return nil, err
 	}
 
-	req.isDisabled = false
+	req.IsDisabled = false
 	return req, nil
 }
 

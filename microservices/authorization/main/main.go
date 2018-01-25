@@ -1,7 +1,6 @@
 package main
 
 import (
-	"TaskManager/microservices/authorization"
 	"context"
 	"flag"
 	"fmt"
@@ -10,12 +9,12 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-
-	"TaskManager/svcdiscovery"
 	"errors"
 	"github.com/go-kit/kit/log"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	"net"
+	"github.com/ValeryPiashchynski/TaskManager/microservices/authorization"
+	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
 )
 
 func main() {

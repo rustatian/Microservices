@@ -5,7 +5,7 @@ type RegRequest struct {
 	Fullname   string `json:"fullname"`
 	Email      string `json:"email"`
 	Password   string `json:"password"`
-	isDisabled bool   `json:"is_disabled"`
+	IsDisabled bool   `json:"is_disabled"`
 }
 
 type RegResponce struct {
