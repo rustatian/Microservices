@@ -55,6 +55,7 @@ type Endpoints struct {
 	HashEnpoint        endpoint.Endpoint
 	ValidateEndpoint   endpoint.Endpoint
 	VaultHealtEndpoint endpoint.Endpoint
+	HashNatsEnpoint    endpoint.Endpoint
 }
 
 func (e Endpoints) Hash(ctx context.Context, password string) (string, error) {
@@ -114,6 +115,17 @@ func MakeHealtEndpoint(svc Service) endpoint.Endpoint {
 	}
 }
 
+func MakeHashNatsEndpoint(svc Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(hashRequest)
+		v, err := svc.Hash(ctx, req.Password)
+		if err != nil {
+			return hashResponse{Hash: v, Err: err.Error()}, err
+		}
+		return hashResponse{Hash: v, Err: ""}, nil
+	}
+}
+
 func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) Endpoints {
 	//declare metrics
 	fieldKeys := []string{"method"}
@@ -157,9 +169,18 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 		healthEndpoint = LoggingMiddleware(log.With(logger, "method", "health"))(healthEndpoint)
 	}
 
+	var hashnatsendpoint endpoint.Endpoint
+	{
+		hashnatsendpoint = MakeHashNatsEndpoint(svc)
+		hashnatsendpoint = opentracing.TraceServer(trace, "hashNats")(hashnatsendpoint)
+		hashnatsendpoint = LoggingMiddleware(log.With(logger, "method", "hashNats"))(hashnatsendpoint)
+
+	}
+
 	return Endpoints{
 		HashEnpoint:        hashEndpoint,
 		ValidateEndpoint:   validateEndpoint,
 		VaultHealtEndpoint: healthEndpoint,
+		HashNatsEnpoint:    hashnatsendpoint,
 	}
 }

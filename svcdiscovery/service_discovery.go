@@ -6,7 +6,7 @@ import (
 	"github.com/go-kit/kit/sd"
 	consulsd "github.com/go-kit/kit/sd/consul"
 	"github.com/hashicorp/consul/api"
-	"github.com/leonelquinteros/gorand"
+	//"github.com/leonelquinteros/gorand"
 	"net"
 	"os"
 	"strconv"
@@ -65,8 +65,11 @@ func (s *serviceDiscovery) Registration(consulAddr, consulPort, svcAddress, svcP
 		Notes:    "Basic health checks",
 	}
 
-	port, _ := strconv.Atoi(svcPort)
-	uuid, _ := gorand.UUID()
+	port, err := strconv.Atoi(svcPort)
+	if err != nil {
+
+	}
+	uuid := "15"
 
 	asr := api.AgentServiceRegistration{
 		ID:      uuid,

@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ValeryPiashchynski/TaskManager/microservices/vault/nats"
 	"github.com/go-kit/kit/log"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
+	gonats "github.com/nats-io/go-nats"
 	stdprometheus "github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"net/http"
@@ -46,7 +48,35 @@ func MakeVaultHttpHandler(endpoint Endpoints, logger log.Logger) http.Handler {
 
 	r.Path("/metrics").Handler(stdprometheus.Handler())
 
+	handler := nats.NewServer(
+		endpoint.HashNatsEnpoint,
+		decodeUppercaseRequest,
+		encodeResponse,
+		1,
+		1,
+		1,
+		time.Millisecond*10,
+		nil,
+	)
+
+	nc, _ := gonats.Connect(gonats.DefaultURL)
+	nc.QueueSubscribe("111", "111", handler.MsgHandler)
+
 	return r
+}
+
+func decodeUppercaseRequest(_ context.Context, msg *gonats.Msg) (interface{}, error) {
+	var request hashRequest
+	if err := json.Unmarshal(msg.Data, &request); err != nil {
+		return nil, err
+	}
+	return request, nil
+}
+
+func encodeResponse(_ context.Context, response interface{}) (r []byte, err error) {
+	resp := response.(hashResponse)
+	data, err := json.Marshal(resp)
+	return data, err
 }
 
 func DecodeHashRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -77,11 +107,10 @@ func DecodeHealthRequest(ctx context.Context, r *http.Request) (interface{}, err
 	}
 
 	contx.Log.WithFields(logrus.Fields{
-		"time": time.Now().Format(time.RFC3339Nano),
-		"Method": "DecodeHealthRequest",
+		"time":    time.Now().Format(time.RFC3339Nano),
+		"Method":  "DecodeHealthRequest",
 		"request": r,
 	}).Info("Decode health request")
-
 
 	//var req healthRequest
 	//if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
