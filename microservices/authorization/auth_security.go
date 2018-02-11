@@ -89,7 +89,7 @@ func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 		tokenString string
 	)
 
-	uuid, err := gorand.UUID()
+	uuid, err := gorand.UUIDv4()
 	if err != nil {
 		panic(err.Error())
 	}
@@ -135,6 +135,7 @@ func loginHandler(username string, resp *LoginResponce, log log.Logger) error {
 				DB:       0,
 			})
 
+		uuid, _ := gorand.MarshalUUID(uuid)
 		var err *redis.StatusCmd = client.Set(uuid, val, time.Duration(time.Hour*24))
 		if err != nil {
 			errChan <- err.Err()

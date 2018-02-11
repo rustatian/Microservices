@@ -6,7 +6,7 @@ import (
 	"github.com/go-kit/kit/sd"
 	consulsd "github.com/go-kit/kit/sd/consul"
 	"github.com/hashicorp/consul/api"
-	//"github.com/leonelquinteros/gorand"
+	"github.com/leonelquinteros/gorand"
 	"net"
 	"os"
 	"strconv"
@@ -69,10 +69,11 @@ func (s *serviceDiscovery) Registration(consulAddr, consulPort, svcAddress, svcP
 	if err != nil {
 
 	}
-	uuid := "15"
+	uuid, _ := gorand.UUIDv4()
+	unmuuid, _ := gorand.MarshalUUID(uuid)
 
 	asr := api.AgentServiceRegistration{
-		ID:      uuid,
+		ID:      unmuuid,
 		Name:    svcName,
 		Address: svcAddress,
 		Port:    port,

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
 	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
@@ -23,7 +24,6 @@ import (
 	"net/http"
 	"os"
 	"time"
-	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
 )
 
 var (
@@ -223,7 +223,7 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 		loginEndpoint = MakeLoginEndpoint(svc)
 		loginEndpoint = JwtLoginEndpoint(logger)(loginEndpoint)
 		loginEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(loginEndpoint)
-		loginEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(loginEndpoint)
+		loginEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{Interval: time.Second * 1}))(loginEndpoint)
 		loginEndpoint = opentracing.TraceServer(trace, "login")(loginEndpoint)
 		loginEndpoint = LoggingMiddleware(log.With(logger, "method", "login"))(loginEndpoint)
 	}
@@ -233,7 +233,7 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 		logoutEndpoint = MakeLogoutEndpoint(svc)
 		logoutEndpoint = JwtLogoutEndpoint(logger)(logoutEndpoint)
 		logoutEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(logoutEndpoint)
-		logoutEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(logoutEndpoint)
+		logoutEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{Interval: time.Second * 1}))(logoutEndpoint)
 		logoutEndpoint = opentracing.TraceServer(trace, "logout")(logoutEndpoint)
 		logoutEndpoint = LoggingMiddleware(log.With(logger, "method", "logout"))(logoutEndpoint)
 	}
@@ -242,7 +242,7 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 	{
 		healthEndpoint = MakeHealthEndpoint(svc)
 		healthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(healthEndpoint)
-		healthEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(healthEndpoint)
+		healthEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{Interval: time.Second * 1}))(healthEndpoint)
 		healthEndpoint = opentracing.TraceServer(trace, "health")(healthEndpoint)
 		healthEndpoint = LoggingMiddleware(log.With(logger, "method", "health"))(healthEndpoint)
 	}

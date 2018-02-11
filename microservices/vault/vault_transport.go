@@ -24,12 +24,12 @@ func MakeVaultHttpHandler(endpoint Endpoints, logger log.Logger) http.Handler {
 		httptransport.ServerErrorEncoder(encodeError),
 	}
 
-	r.Methods("POST").Path("/hash").Handler(httptransport.NewServer(
-		endpoint.HashEnpoint,
-		DecodeHashRequest,
-		EncodeHashResponce,
-		options...,
-	))
+	//r.Methods("POST").Path("/hash").Handler(httptransport.NewServer(
+	//	endpoint.HashEnpoint,
+	//	DecodeHashRequest,
+	//	EncodeHashResponce,
+	//	options...,
+	//))
 
 	r.Methods("POST").Path("/validate").Handler(httptransport.NewServer(
 		endpoint.ValidateEndpoint,
@@ -52,9 +52,9 @@ func MakeVaultHttpHandler(endpoint Endpoints, logger log.Logger) http.Handler {
 		endpoint.HashNatsEnpoint,
 		decodeUppercaseRequest,
 		encodeResponse,
-		1,
-		1,
-		1,
+		5,
+		10,
+		5,
 		time.Millisecond*10,
 		nil,
 	)
