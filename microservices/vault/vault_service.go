@@ -52,14 +52,14 @@ func (newVaultService) HealthCheck() bool {
 }
 
 type Endpoints struct {
-	ValidateEndpoint   endpoint.Endpoint
-	VaultHealtEndpoint endpoint.Endpoint
-	HashNatsEnpoint    endpoint.Endpoint
+	HashEndpoint        endpoint.Endpoint
+	ValidateEndpoint    endpoint.Endpoint
+	VaultHealthEndpoint endpoint.Endpoint
 }
 
 func (e Endpoints) Hash(ctx context.Context, password string) (string, error) {
 	req := hashRequest{Password: password}
-	resp, err := e.HashNatsEnpoint(ctx, req)
+	resp, err := e.HashEndpoint(ctx, req)
 	if err != nil {
 		return "", err
 	}
@@ -83,7 +83,7 @@ func (e Endpoints) Validate(ctx context.Context, password, hash string) (bool, e
 	return validateResp.Valid, nil
 }
 
-func MakeHashNatsEndpoint(svc Service) endpoint.Endpoint {
+func MakeHashEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(hashRequest)
 		v, err := svc.Hash(ctx, req.Password)
@@ -134,7 +134,7 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 
 	var hashEndpoint endpoint.Endpoint
 	{
-		hashEndpoint = MakeHashNatsEndpoint(svc)
+		hashEndpoint = MakeHashEndpoint(svc)
 		hashEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(hashEndpoint)
 		hashEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(hashEndpoint)
 		hashEndpoint = opentracing.TraceServer(trace, "hash")(hashEndpoint)
@@ -158,8 +158,8 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 	}
 
 	return Endpoints{
-		ValidateEndpoint:   validateEndpoint,
-		VaultHealtEndpoint: healthEndpoint,
-		HashNatsEnpoint:    hashEndpoint,
+		ValidateEndpoint:    validateEndpoint,
+		VaultHealthEndpoint: healthEndpoint,
+		HashEndpoint:        hashEndpoint,
 	}
 }

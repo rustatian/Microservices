@@ -24,7 +24,13 @@ RUN go build -o authd main.go
 
 EXPOSE 10001 10001
 #?? Delete
-EXPOSE 3306
+EXPOSE 5432
 EXPOSE 6379
 
 CMD ["./authd"]
+CMD ["./1d"]
+CMD ["./2d"]
+CMD ["./3d"]
+CMD ["./4d"]
+
+

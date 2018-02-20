@@ -18,7 +18,8 @@ message HashResponce {
 }
 
 message ValidateRequest {
-    string hash = 1;
+    string password = 1;
+    string hash = 2;
 }
 
 message ValidateResponce {
