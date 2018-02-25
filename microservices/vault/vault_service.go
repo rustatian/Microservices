@@ -83,6 +83,7 @@ func (e Endpoints) Validate(ctx context.Context, password, hash string) (bool, e
 	return validateResp.Valid, nil
 }
 
+//HTTP AND NATS ENDPOINTS
 func MakeHashEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(hashRequest)
@@ -105,8 +106,7 @@ func MakeValidateEndpoint(svc Service) endpoint.Endpoint {
 	}
 }
 
-//TODO correct health request
-func MakeHealtEndpoint(svc Service) endpoint.Endpoint {
+func MakeHealthEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		//req := request.(healthRequest)
 		v := svc.HealthCheck()
@@ -150,7 +150,7 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 	}
 	var healthEndpoint endpoint.Endpoint
 	{
-		healthEndpoint = MakeHealtEndpoint(svc)
+		healthEndpoint = MakeHealthEndpoint(svc)
 		healthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(healthEndpoint)
 		healthEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{Timeout: time.Duration(time.Second * 2)}))(healthEndpoint)
 		healthEndpoint = opentracing.TraceServer(trace, "health")(healthEndpoint)

@@ -1,14 +1,20 @@
 package gateway
 
 import (
+	"context"
 	"fmt"
+	"github.com/ValeryPiashchynski/TaskManager/microservices/pb/vault"
+	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
+	grpctransport "github.com/go-kit/kit/transport/grpc"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"github.com/spf13/viper"
+	"google.golang.org/grpc"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
-	"github.com/rs/cors"
-	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
+	"time"
 )
 
 var (
@@ -292,35 +298,66 @@ func validate(writer http.ResponseWriter, request *http.Request) {
 	writer.Write(data)
 }
 
+func encodeGRPCHashRequest(_ context.Context, request interface{}) (response interface{}, err error) {
+	req := request.(hashRequest)
+	return &pb_vault.HashRequest{
+		Password: req.Password,
+	}, nil
+
+}
+
+func decodeGRPCHashResponce(_ context.Context, request interface{}) (response interface{}, err error) {
+	req := request.(*pb_vault.HashResponce)
+	return hashResponse{
+		Hash: req.Hash,
+		Err:  req.Err,
+	}, nil
+}
+
 // /hash
 func hash(writer http.ResponseWriter, r *http.Request) {
-	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &vaultSvcName, &tag)
-	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	defer r.Body.Close()
-	r.Close = true
-
-	fmt.Println(addr)
-
-	resp, err := http.Post(addr+"/hash", "application/json", r.Body)
+	ctx := context.Background()
+	conn, err := grpc.Dial("8081", grpc.WithInsecure(), grpc.WithTimeout(1*time.Second))
 
 	if err != nil {
-		writer.Write([]byte(err.Error()))
-		return
+		log.Fatalln("gRPC dial:", err)
 	}
-	defer resp.Body.Close()
-	resp.Close = true
+	defer conn.Close()
 
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Write([]byte(err.Error()))
-		return
-	}
+	var hashService = grpctransport.NewClient(
+		conn, "Vault", "Hash",
+		encodeGRPCHashRequest,
+		decodeGRPCHashResponce,
+		pb_vault.HashResponce{},
+	).Endpoint()
 
-	writer.WriteHeader(resp.StatusCode)
-	writer.Write(data)
+	//addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &vaultSvcName, &tag)
+	//if err != nil {
+	//	writer.WriteHeader(http.StatusInternalServerError)
+	//	return
+	//}
+	//defer r.Body.Close()
+	//r.Close = true
+	//
+	//fmt.Println(addr)
+	//
+	//resp, err := http.Post(addr+"/hash", "application/json", r.Body)
+	//
+	//if err != nil {
+	//	writer.Write([]byte(err.Error()))
+	//	return
+	//}
+	//defer resp.Body.Close()
+	//resp.Close = true
+	//
+	//data, err := ioutil.ReadAll(resp.Body)
+	//if err != nil {
+	//	writer.WriteHeader(http.StatusInternalServerError)
+	//	writer.Write([]byte(err.Error()))
+	//	return
+	//}
+	//
+	//writer.WriteHeader(resp.StatusCode)
+	//writer.Write(data)
 
 }

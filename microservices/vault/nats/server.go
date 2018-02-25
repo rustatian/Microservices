@@ -41,7 +41,7 @@ func NewServer(
 	options ...ServerOption,
 
 ) *Server {
-	conn, err := nats.Connect(nats.DefaultURL)
+	conn, err := nats.Connect("nats://172.24.231.70:4222")
 	if err != nil {
 		panic(err)
 	}
@@ -89,40 +89,6 @@ func ServerErrorLogger(logger log.Logger) ServerOption {
 func (s *Server) MsgHandler(msg *nats.Msg) {
 	s.QueueCh <- msg
 	log.Println("added in chan")
-	//nats format - nats://ip:port
-	//urls := fmt.Sprint(os.Getenv("NATS_SERVER"), ", ", fmt.Sprintf("nats://%v:%v", os.Getenv("NATS_SERVICE_HOST"), os.Getenv("NATS_SERVICE_PORT")))
-
-	//s.logger.Info(urls)
-
-	//nc, err := nats.Connect(nats.DefaultURL)
-	//if err != nil {
-	//	s.logger.Error("Can't connect: %v\n", err)
-	//}
-
-	//defer s.Conn.Close()
-	//
-	//// Non-nil non empty context to take the place of the first context in th chain of handling.
-	//ctx := context.TODO()
-	//
-	//request, err := s.dec(ctx, msg)
-	//if err != nil {
-	//	s.logger.Error("err", err)
-	//	return
-	//}
-	//
-	//response, err := s.e(ctx, request)
-	//if err != nil {
-	//	s.logger.Error("err", err)
-	//	return
-	//}
-	//
-	//payload, err := s.enc(ctx, response)
-	//if err != nil {
-	//	s.logger.Error("err", err)
-	//	return
-	//}
-	//
-	//s.Conn.Publish(msg.Reply, payload)
 }
 
 func (s *Server) worker(id int) {

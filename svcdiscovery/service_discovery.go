@@ -5,8 +5,8 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/sd"
 	consulsd "github.com/go-kit/kit/sd/consul"
+	"github.com/google/uuid"
 	"github.com/hashicorp/consul/api"
-	"github.com/leonelquinteros/gorand"
 	"net"
 	"os"
 	"strconv"
@@ -14,7 +14,8 @@ import (
 )
 
 type Discovery interface {
-	Registration(consulAddr, consulPort, svcAddress, svcPort, svcName string, logger log.Logger) (registrar sd.Registrar)
+	RegistrationViaHTTP(consulAddr, consulPort, svcAddress, svcPort, svcName string, logger log.Logger) (registrar sd.Registrar)
+	RegistrationViaTCP(consulAddr, consulPort, svcAddress, svcPort, svcName string, logger log.Logger) (registrar sd.Registrar)
 	Find(consulAddress, serviceName, tag *string) (address string, e error)
 }
 
@@ -45,7 +46,7 @@ func client(consulAddr *string) *consulsd.Client {
 	return &client
 }
 
-func (s *serviceDiscovery) Registration(consulAddr, consulPort, svcAddress, svcPort, svcName string, logger log.Logger) (registrar sd.Registrar) {
+func (s *serviceDiscovery) RegistrationViaHTTP(consulAddr, consulPort, svcAddress, svcPort, svcName string, logger log.Logger) (registrar sd.Registrar) {
 
 	consulConfig := api.DefaultConfig()
 	if len(consulAddr) > 0 {
@@ -69,11 +70,49 @@ func (s *serviceDiscovery) Registration(consulAddr, consulPort, svcAddress, svcP
 	if err != nil {
 
 	}
-	uuid, _ := gorand.UUIDv4()
-	unmuuid, _ := gorand.MarshalUUID(uuid)
+	Uuid := uuid.New().String()
 
 	asr := api.AgentServiceRegistration{
-		ID:      unmuuid,
+		ID:      Uuid,
+		Name:    svcName,
+		Address: svcAddress,
+		Port:    port,
+		Tags:    []string{svcName, "Adexin"},
+		Check:   &check,
+	}
+
+	return consulsd.NewRegistrar(consulsd.NewClient(consulClient), &asr, logger)
+
+}
+
+func (s *serviceDiscovery) RegistrationViaTCP(consulAddr, consulPort, svcAddress, svcPort, svcName string, logger log.Logger) (registrar sd.Registrar) {
+
+	consulConfig := api.DefaultConfig()
+	if len(consulAddr) > 0 {
+		consulConfig.Address = net.JoinHostPort(consulAddr, consulPort)
+	}
+
+	consulClient, err := api.NewClient(consulConfig)
+	if err != nil {
+		logger.Log("err", err)
+		os.Exit(1)
+	}
+
+	check := api.AgentServiceCheck{
+		TCP:      net.JoinHostPort(svcAddress, svcPort),
+		Interval: "10s",
+		Timeout:  "1s",
+		Notes:    "Basic health checks",
+	}
+
+	port, err := strconv.Atoi(svcPort)
+	if err != nil {
+
+	}
+
+	Uuid := uuid.New().String()
+	asr := api.AgentServiceRegistration{
+		ID:      Uuid,
 		Name:    svcName,
 		Address: svcAddress,
 		Port:    port,
