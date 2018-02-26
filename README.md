@@ -1,7 +1,7 @@
 # TaskManager
 Backend for TaskManager (https://github.com/ArtsiomPiashchynski/TaskManager) written in GO, hosted in 0xdev.me.
 
-# Auth
+# Authorization
 
 Authorization microservice with consul, go-kit. Create jwt token after login request, optioinally can save it in consul k/v storage, also have heath checks
 
