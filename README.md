@@ -1,5 +1,5 @@
 # TaskManager
-Backend for TaskManager (https://github.com/ArtsiomPiashchynski/TaskManager) written in GO, hosted in 0xdev.me.
+Backend for TaskManager (https://github.com/ArtsiomPiashchynski/TaskManager) written in GO, hosted in http://0xdev.me.
 
 # Authorization
 
