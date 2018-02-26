@@ -24,5 +24,5 @@ All services contains /health endpoint to connect to consul and /metrics endpoin
 Sample of counsul health checks you can see at:
 http://207.154.217.167:8500/ui/#/dc1/services
 
-Sample of grafana graphics (with prometheus) you can see at:
+Sample of grafana graphics (with prometheus) you can see at (login test, password test):
 http://207.154.217.167:3000/dashboard/db/taskcalendar
