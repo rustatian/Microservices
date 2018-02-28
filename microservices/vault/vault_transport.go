@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"runtime"
+	"time"
+
 	"github.com/ValeryPiashchynski/TaskManager/microservices/vault/nats"
 	"github.com/go-kit/kit/log"
 	httptransport "github.com/go-kit/kit/transport/http"
@@ -11,11 +15,9 @@ import (
 	gonats "github.com/nats-io/go-nats"
 	stdprometheus "github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
-	"net/http"
-	"time"
 )
 
-func MakeVaultNatsHandler(endpoint Endpoints, logger log.Logger) http.Handler {
+func MakeVaultNatsHandler(endpoint Endpoints, logger log.Logger, natsUrl string, err chan error) http.Handler {
 	//Used for health checks and metrics
 	r := mux.NewRouter()
 	options := []httptransport.ServerOption{
@@ -23,32 +25,60 @@ func MakeVaultNatsHandler(endpoint Endpoints, logger log.Logger) http.Handler {
 		httptransport.ServerErrorEncoder(encodeError),
 	}
 
+	nc, er := gonats.Connect(natsUrl)
+	if er != nil {
+		err <- er
+	}
+	nc, er = gonats.Connect(natsUrl,
+		gonats.DisconnectHandler(func(nc *gonats.Conn) {
+			fmt.Printf("Got disconnected!\n")
+		}),
+		gonats.ReconnectHandler(func(_ *gonats.Conn) {
+			fmt.Printf("Got reconnected to %v!\n", nc.ConnectedUrl())
+		}),
+		gonats.ClosedHandler(func(nc *gonats.Conn) {
+			fmt.Printf("Connection closed. Reason: %q\n", nc.LastError())
+		}),
+	)
+
+	if er != nil {
+		err <- er
+	}
+
 	hashHandler := nats.NewServer(
 		endpoint.HashEndpoint,
 		decodeHashRequest,
 		encodeHashResponse,
 		10,
+		runtime.GOMAXPROCS(12),
 		10,
-		5,
-		time.Millisecond*10,
-		nil,
+		time.Microsecond*1,
+		err,
 	)
-
-	nc, _ := gonats.Connect("nats://172.24.231.70:4222")
 	nc.QueueSubscribe("hash", "hash", hashHandler.MsgHandler)
+
+	validateHandler := nats.NewServer(
+		endpoint.ValidateEndpoint,
+		decodeValidateRequest,
+		encodeValidateResponse,
+		10,
+		runtime.GOMAXPROCS(12),
+		10,
+		time.Microsecond*1,
+		err,
+	)
+	nc.QueueSubscribe("validate", "validate", validateHandler.MsgHandler)
 
 	//GET /health
 	r.Methods("GET").Path("/health").Handler(httptransport.NewServer(
 		endpoint.VaultHealthEndpoint,
-		DecodeHealthRequest,
-		EncodeHealthResponce,
+		decodeHTTPHealthRequest,
+		encodeHTTPHealthResponse,
 		options...,
 	))
-
 	r.Path("/metrics").Handler(stdprometheus.Handler())
 
 	return r
-
 }
 
 // Make Http Handler
@@ -62,23 +92,23 @@ func MakeVaultHttpHandler(endpoint Endpoints, logger log.Logger) http.Handler {
 
 	r.Methods("POST").Path("/hash").Handler(httptransport.NewServer(
 		endpoint.HashEndpoint,
-		DecodeHashRequest,
-		EncodeHashResponce,
+		decodeHTTPHashRequest,
+		encodeHTTPHashResponse,
 		options...,
 	))
 
 	r.Methods("POST").Path("/validate").Handler(httptransport.NewServer(
 		endpoint.ValidateEndpoint,
-		DecodeValidateRequest,
-		EncodeValidateResponce,
+		decodeHTTPValidateRequest,
+		encodeHTTPValidateResponse,
 		options...,
 	))
 
 	//GET /health
 	r.Methods("GET").Path("/health").Handler(httptransport.NewServer(
 		endpoint.VaultHealthEndpoint,
-		DecodeHealthRequest,
-		EncodeHealthResponce,
+		decodeHTTPHealthRequest,
+		encodeHTTPHealthResponse,
 		options...,
 	))
 
@@ -87,7 +117,7 @@ func MakeVaultHttpHandler(endpoint Endpoints, logger log.Logger) http.Handler {
 	return r
 }
 
-func DecodeHashRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func decodeHTTPHashRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var request hashRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		return nil, err
@@ -95,7 +125,7 @@ func DecodeHashRequest(ctx context.Context, r *http.Request) (interface{}, error
 	return request, nil
 }
 
-func DecodeValidateRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func decodeHTTPValidateRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	var req validateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return nil, err
@@ -103,7 +133,7 @@ func DecodeValidateRequest(ctx context.Context, r *http.Request) (interface{}, e
 	return req, nil
 }
 
-func DecodeHealthRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func decodeHTTPHealthRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 
 	contx, err := GetContext(r)
 
@@ -116,19 +146,13 @@ func DecodeHealthRequest(ctx context.Context, r *http.Request) (interface{}, err
 
 	contx.Log.WithFields(logrus.Fields{
 		"time":    time.Now().Format(time.RFC3339Nano),
-		"Method":  "DecodeHealthRequest",
+		"Method":  "decodeHTTPHealthRequest",
 		"request": r,
 	}).Info("Decode health request")
-
-	//var req healthRequest
-	//if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-	//	return nil, err
-	//}
-	//return req, nil
 	return healthRequest{}, nil
 }
 
-func EncodeHashResponce(ctx context.Context, w http.ResponseWriter, resp interface{}) error {
+func encodeHTTPHashResponse(ctx context.Context, w http.ResponseWriter, resp interface{}) error {
 	var responce = resp.(hashResponse)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	if err := json.NewEncoder(w).Encode(&responce); err != nil {
@@ -137,7 +161,7 @@ func EncodeHashResponce(ctx context.Context, w http.ResponseWriter, resp interfa
 	return nil
 }
 
-func EncodeValidateResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) (e error) {
+func encodeHTTPValidateResponse(ctx context.Context, w http.ResponseWriter, responce interface{}) (e error) {
 	resp, ok := responce.(validateResponse)
 	if !ok {
 		return fmt.Errorf("type conversion error in validate encode responce")
@@ -152,7 +176,7 @@ func EncodeValidateResponce(ctx context.Context, w http.ResponseWriter, responce
 	return nil
 }
 
-func EncodeHealthResponce(ctx context.Context, w http.ResponseWriter, responce interface{}) (e error) {
+func encodeHTTPHealthResponse(ctx context.Context, w http.ResponseWriter, responce interface{}) (e error) {
 	resp, ok := responce.(healthResponse)
 	if !ok {
 		return fmt.Errorf("type conversion error in health encode responce")
@@ -166,7 +190,7 @@ func EncodeHealthResponce(ctx context.Context, w http.ResponseWriter, responce i
 	return nil
 }
 
-func encodeError(_ context.Context, err error, w http.ResponseWriter) {
+func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	if err == nil {
 		panic("encodeError with nil error")
 	}
@@ -177,14 +201,29 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	})
 }
 
-func encodeHashResponse(_ context.Context, response interface{}) (r []byte, err error) {
+//NATS Encode/decode
+func encodeHashResponse(ctx context.Context, response interface{}) (r []byte, err error) {
 	resp := response.(hashResponse)
 	data, err := json.Marshal(resp)
 	return data, err
 }
 
-func decodeHashRequest(_ context.Context, msg *gonats.Msg) (interface{}, error) {
+func decodeHashRequest(ctx context.Context, msg *gonats.Msg) (interface{}, error) {
 	var request hashRequest
+	if err := json.Unmarshal(msg.Data, &request); err != nil {
+		return nil, err
+	}
+	return request, nil
+}
+
+func encodeValidateResponse(ctx context.Context, response interface{}) (r []byte, err error) {
+	resp := response.(validateResponse)
+	data, err := json.Marshal(resp)
+	return data, err
+}
+
+func decodeValidateRequest(ctx context.Context, msg *gonats.Msg) (interface{}, error) {
+	var request validateRequest
 	if err := json.Unmarshal(msg.Data, &request); err != nil {
 		return nil, err
 	}

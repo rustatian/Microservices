@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-
 func Metrics(requestCount metrics.Counter, requestLatency metrics.Histogram) ServiceMiddleware {
 	return func(svc Service) Service {
 		return metricsMiddleware{
@@ -18,11 +17,11 @@ func Metrics(requestCount metrics.Counter, requestLatency metrics.Histogram) Ser
 
 type metricsMiddleware struct {
 	Service
-	requestCount metrics.Counter
+	requestCount   metrics.Counter
 	requestLatency metrics.Histogram
 }
 
-func(mw metricsMiddleware) Login(username, password string) (mesg string, roles []string, err error) {
+func (mw metricsMiddleware) Login(username, password string) (mesg string, roles []string, err error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "Login"}
 		mw.requestCount.With(lvs...).Add(1)
@@ -54,29 +53,3 @@ func (mw metricsMiddleware) AuthHealtCheck() (res bool) {
 	res = mw.Service.AuthHealtCheck()
 	return
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

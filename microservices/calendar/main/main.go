@@ -5,6 +5,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/ValeryPiashchynski/TaskManager/microservices/calendar"
+	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
 	"github.com/go-kit/kit/log"
 	"github.com/gorilla/handlers"
 	stdopentracing "github.com/opentracing/opentracing-go"
@@ -13,8 +15,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
-	"github.com/ValeryPiashchynski/TaskManager/microservices/calendar"
 )
 
 func main() {

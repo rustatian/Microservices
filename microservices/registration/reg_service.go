@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
 	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
@@ -22,7 +23,6 @@ import (
 	"net/http"
 	"os"
 	"time"
-	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
 )
 
 var (
@@ -261,7 +261,7 @@ func NewEndpoints(svc Service, logger log.Logger, tracer stdopentracing.Tracer) 
 		regEndpoint = MakeRegEndpoint(svc)
 		regEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Second), 1))(regEndpoint)
 		regEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(regEndpoint)
-		regEndpoint = opentracing.TraceServer(tracer, "Registration")(regEndpoint)
+		regEndpoint = opentracing.TraceServer(tracer, "RegistrationViaHTTP")(regEndpoint)
 		regEndpoint = LoggingMiddleware(logger)(regEndpoint)
 	}
 

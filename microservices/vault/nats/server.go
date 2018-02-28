@@ -52,12 +52,12 @@ func NewServer(
 		logger: *log.New(),
 
 		Conn:          conn,
-		FlushInterval: time.Millisecond * 1000, //FlushInterval
+		FlushInterval: FlushInterval, //FlushInterval
 		MaxBatchSize:  MaxBatchSize,
 		WorkerCount:   WorkerCount,
 		QueueSize:     QueueSize,
 		QueueCh:       make(chan *nats.Msg), //QueueCh
-		ErrorCh:       make(chan error),
+		ErrorCh:       ErrorCh,
 	}
 	for _, option := range options {
 		option(s)
@@ -142,18 +142,21 @@ func (s *Server) flush(workerId int, buffer []*nats.Msg, reason string) {
 		request, err := s.dec(ctx, m)
 		if err != nil {
 			s.logger.Error("err", err)
+			s.ErrorCh <- err
 			return
 		}
 
 		response, err := s.e(ctx, request)
 		if err != nil {
 			s.logger.Error("err", err)
+			s.ErrorCh <- err
 			return
 		}
 
 		payload, err := s.enc(ctx, response)
 		if err != nil {
 			s.logger.Error("err", err)
+			s.ErrorCh <- err
 			return
 		}
 

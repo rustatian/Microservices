@@ -4,17 +4,19 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/ValeryPiashchynski/TaskManager/microservices/vault"
-	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
-	"github.com/go-kit/kit/log"
-	stdopentracing "github.com/opentracing/opentracing-go"
-	"github.com/sirupsen/logrus"
+	stdlog "log"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/ValeryPiashchynski/TaskManager/microservices/vault"
+	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
+	"github.com/go-kit/kit/log"
+	stdopentracing "github.com/opentracing/opentracing-go"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -25,7 +27,8 @@ func main() {
 		svcName    = flag.String("service.name", "vaultsvc", "Vault service name")
 	)
 
-	vaultAddr, _ := externalIP()
+	vaultAddr := "localhost"
+	//vaultAddr, _ := externalIP()
 
 	flag.Parse()
 
@@ -50,8 +53,19 @@ func main() {
 	defer reg.Deregister()
 
 	endpoints := vault.NewEndpoints(svc, logger, tracer)
-	r := vault.MakeVaultNatsHandler(endpoints, logger)
 
+	errCh := make(chan error)
+	// Interrupt handler.
+	c := make(chan os.Signal)
+
+	//Error handler
+	go func() {
+		//logger.Log("nats error:", <-errCh)
+		stdlog.Fatal(<-errCh)
+	}()
+
+	//r := vault.MakeVaultNatsHandler(endpoints, logger, "nats://172.24.231.70:4222", errCh)
+	r := vault.MakeVaultHttpHandler(endpoints, logger)
 	srv := &http.Server{
 		Handler:      vault.NewContextHandler(ctx, r),
 		Addr:         vaultAddr + ":" + *vaultPort,
@@ -59,12 +73,9 @@ func main() {
 		ReadTimeout:  15 * time.Second,
 	}
 
-	// Interrupt handler.
-	errc := make(chan error)
 	go func() {
-		c := make(chan os.Signal)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		errc <- fmt.Errorf("%s", <-c)
+		errCh <- fmt.Errorf("%s", <-c)
 	}()
 
 	go func() {
@@ -72,10 +83,10 @@ func main() {
 		logger.Log("transport", "HTTP", "addr", ":"+*vaultPort)
 
 		//Custom server with logrus
-		errc <- srv.ListenAndServe()
+		errCh <- srv.ListenAndServe()
 	}()
 
-	logger.Log("exit", <-errc)
+	logger.Log("exit", <-errCh)
 }
 
 func externalIP() (string, error) {

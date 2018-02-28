@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/ValeryPiashchynski/TaskManager/gateway"
 	"github.com/go-kit/kit/log"
 	"github.com/gorilla/handlers"
 	ilog "log"
@@ -12,7 +13,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"github.com/ValeryPiashchynski/TaskManager/gateway"
 )
 
 func init() {

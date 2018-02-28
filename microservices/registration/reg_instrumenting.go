@@ -17,13 +17,13 @@ func Metrics(counter metrics.Counter, histogram metrics.Histogram) ServiceMiddle
 
 type metricsMiddleware struct {
 	Service
-	counter metrics.Counter
+	counter   metrics.Counter
 	histogram metrics.Histogram
 }
 
-func(mw metricsMiddleware) Registration(username, fullname, email, password string, isDisabled bool) (ok bool, e error) {
+func (mw metricsMiddleware) Registration(username, fullname, email, password string, isDisabled bool) (ok bool, e error) {
 	defer func(begin time.Time) {
-		lvs := []string{"method", "Registration"}
+		lvs := []string{"method", "RegistrationViaHTTP"}
 		mw.counter.With(lvs...).Add(1)
 		mw.histogram.With(lvs...).Observe(time.Since(begin).Seconds() * 100000)
 	}(time.Now())
@@ -32,7 +32,7 @@ func(mw metricsMiddleware) Registration(username, fullname, email, password stri
 	return
 }
 
-func(mw metricsMiddleware) UsernameValidation(username string) (ok bool, e error) {
+func (mw metricsMiddleware) UsernameValidation(username string) (ok bool, e error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "UsernameValidation"}
 		mw.counter.With(lvs...).Add(1)
@@ -42,7 +42,7 @@ func(mw metricsMiddleware) UsernameValidation(username string) (ok bool, e error
 	return
 }
 
-func(mw metricsMiddleware) EmailValidation(email string) (ok bool, e error) {
+func (mw metricsMiddleware) EmailValidation(email string) (ok bool, e error) {
 	defer func(begin time.Time) {
 		lvs := []string{"method", "EmailValidation"}
 		mw.counter.With(lvs...).Add(1)
@@ -53,7 +53,7 @@ func(mw metricsMiddleware) EmailValidation(email string) (ok bool, e error) {
 	return
 }
 
-func(mw metricsMiddleware) RegServiceHealthCheck() (ok bool) {
+func (mw metricsMiddleware) RegServiceHealthCheck() (ok bool) {
 	defer func(begin time.Time) {
 		var lvs []string = []string{"method", "RegServiceHealthCheck"}
 		mw.counter.With(lvs...).Add(1)
@@ -63,15 +63,3 @@ func(mw metricsMiddleware) RegServiceHealthCheck() (ok bool) {
 	ok = mw.Service.RegServiceHealthCheck()
 	return
 }
-
-
-
-
-
-
-
-
-
-
-
-

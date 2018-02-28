@@ -3,6 +3,8 @@ package vault
 import (
 	"context"
 	"errors"
+	"time"
+
 	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/log"
@@ -14,7 +16,6 @@ import (
 	"github.com/sony/gobreaker"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/time/rate"
-	"time"
 )
 
 type Service interface {
@@ -131,6 +132,7 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 	}, fieldKeys)
 
 	svc = Metrics(requestCount, requestLatency)(svc)
+	svc = NewLoggingService(log.With(logger, "hash", "validate", "health"), svc)
 
 	var hashEndpoint endpoint.Endpoint
 	{
@@ -138,7 +140,6 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 		hashEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(hashEndpoint)
 		hashEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(hashEndpoint)
 		hashEndpoint = opentracing.TraceServer(trace, "hash")(hashEndpoint)
-		hashEndpoint = LoggingMiddleware(log.With(logger, "method", "hash"))(hashEndpoint)
 	}
 	var validateEndpoint endpoint.Endpoint
 	{
@@ -146,7 +147,6 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 		validateEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(validateEndpoint)
 		validateEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(validateEndpoint)
 		validateEndpoint = opentracing.TraceServer(trace, "validate")(validateEndpoint)
-		validateEndpoint = LoggingMiddleware(log.With(logger, "method", "validate"))(validateEndpoint)
 	}
 	var healthEndpoint endpoint.Endpoint
 	{
@@ -154,7 +154,6 @@ func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) E
 		healthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(healthEndpoint)
 		healthEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{Timeout: time.Duration(time.Second * 2)}))(healthEndpoint)
 		healthEndpoint = opentracing.TraceServer(trace, "health")(healthEndpoint)
-		healthEndpoint = LoggingMiddleware(log.With(logger, "method", "health"))(healthEndpoint)
 	}
 
 	return Endpoints{

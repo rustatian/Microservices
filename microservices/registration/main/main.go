@@ -5,6 +5,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/ValeryPiashchynski/TaskManager/microservices/registration"
+	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
 	"github.com/go-kit/kit/log"
 	"github.com/opentracing/opentracing-go"
 	ilog "log"
@@ -13,8 +15,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"github.com/ValeryPiashchynski/TaskManager/microservices/registration"
-	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
 )
 
 func main() {
@@ -22,7 +22,7 @@ func main() {
 		consulAddr = flag.String("consul.addr", "localhost", "consul address")
 		consulPort = flag.String("consul.port", "8500", "consul port")
 		regPort    = flag.String("reg.port", "10002", "reg port")
-		svcName    = flag.String("service.name", "regsvc", "Registration microservice name")
+		svcName    = flag.String("service.name", "regsvc", "RegistrationViaHTTP microservice name")
 	)
 
 	flag.Parse()
