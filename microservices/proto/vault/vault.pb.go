@@ -150,12 +150,12 @@ func (m *HealthResponse) GetStatus() bool {
 }
 
 func init() {
-	proto.RegisterType((*HashRequest)(nil), "pb.vault.HashRequest")
-	proto.RegisterType((*HashResponce)(nil), "pb.vault.HashResponce")
-	proto.RegisterType((*ValidateRequest)(nil), "pb.vault.ValidateRequest")
-	proto.RegisterType((*ValidateResponce)(nil), "pb.vault.ValidateResponce")
-	proto.RegisterType((*HealthRequest)(nil), "pb.vault.HealthRequest")
-	proto.RegisterType((*HealthResponse)(nil), "pb.vault.HealthResponse")
+	proto.RegisterType((*HashRequest)(nil), "proto.vault.HashRequest")
+	proto.RegisterType((*HashResponce)(nil), "proto.vault.HashResponce")
+	proto.RegisterType((*ValidateRequest)(nil), "proto.vault.ValidateRequest")
+	proto.RegisterType((*ValidateResponce)(nil), "proto.vault.ValidateResponce")
+	proto.RegisterType((*HealthRequest)(nil), "proto.vault.HealthRequest")
+	proto.RegisterType((*HealthResponse)(nil), "proto.vault.HealthResponse")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -184,7 +184,7 @@ func NewVaultClient(cc *grpc.ClientConn) VaultClient {
 
 func (c *vaultClient) Hash(ctx context.Context, in *HashRequest, opts ...grpc.CallOption) (*HashResponce, error) {
 	out := new(HashResponce)
-	err := grpc.Invoke(ctx, "/pb.vault.Vault/Hash", in, out, c.cc, opts...)
+	err := grpc.Invoke(ctx, "/proto.vault.Vault/Hash", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +193,7 @@ func (c *vaultClient) Hash(ctx context.Context, in *HashRequest, opts ...grpc.Ca
 
 func (c *vaultClient) Validate(ctx context.Context, in *ValidateRequest, opts ...grpc.CallOption) (*ValidateResponce, error) {
 	out := new(ValidateResponce)
-	err := grpc.Invoke(ctx, "/pb.vault.Vault/Validate", in, out, c.cc, opts...)
+	err := grpc.Invoke(ctx, "/proto.vault.Vault/Validate", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +202,7 @@ func (c *vaultClient) Validate(ctx context.Context, in *ValidateRequest, opts ..
 
 func (c *vaultClient) HealthCheck(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
 	out := new(HealthResponse)
-	err := grpc.Invoke(ctx, "/pb.vault.Vault/HealthCheck", in, out, c.cc, opts...)
+	err := grpc.Invoke(ctx, "/proto.vault.Vault/HealthCheck", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +231,7 @@ func _Vault_Hash_Handler(srv interface{}, ctx context.Context, dec func(interfac
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/pb.vault.Vault/Hash",
+		FullMethod: "/proto.vault.Vault/Hash",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(VaultServer).Hash(ctx, req.(*HashRequest))
@@ -249,7 +249,7 @@ func _Vault_Validate_Handler(srv interface{}, ctx context.Context, dec func(inte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/pb.vault.Vault/Validate",
+		FullMethod: "/proto.vault.Vault/Validate",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(VaultServer).Validate(ctx, req.(*ValidateRequest))
@@ -267,7 +267,7 @@ func _Vault_HealthCheck_Handler(srv interface{}, ctx context.Context, dec func(i
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/pb.vault.Vault/HealthCheck",
+		FullMethod: "/proto.vault.Vault/HealthCheck",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(VaultServer).HealthCheck(ctx, req.(*HealthRequest))
@@ -276,7 +276,7 @@ func _Vault_HealthCheck_Handler(srv interface{}, ctx context.Context, dec func(i
 }
 
 var _Vault_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "pb.vault.Vault",
+	ServiceName: "proto.vault.Vault",
 	HandlerType: (*VaultServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

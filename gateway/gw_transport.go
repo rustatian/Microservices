@@ -2,19 +2,19 @@ package gateway
 
 import (
 	"context"
-	"fmt"
-	"github.com/ValeryPiashchynski/TaskManager/microservices/pb/vault"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
+	"time"
+
+	"github.com/ValeryPiashchynski/TaskManager/microservices/proto/vault"
 	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
 	grpctransport "github.com/go-kit/kit/transport/grpc"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"os"
-	"time"
 )
 
 var (

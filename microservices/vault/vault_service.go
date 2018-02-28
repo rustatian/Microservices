@@ -3,19 +3,8 @@ package vault
 import (
 	"context"
 	"errors"
-	"time"
-
-	"github.com/go-kit/kit/circuitbreaker"
+	"github.com/ValeryPiashchynski/TaskManager/microservices/tools"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/kit/log"
-	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/go-kit/kit/ratelimit"
-	"github.com/go-kit/kit/tracing/opentracing"
-	stdopentracing "github.com/opentracing/opentracing-go"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"github.com/sony/gobreaker"
-	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/time/rate"
 )
 
 type Service interface {
@@ -24,32 +13,36 @@ type Service interface {
 	HealthCheck() bool
 }
 
-func NewVaultService() Service {
-	return newVaultService{}
+func NewVaultService(checker tools.PasswordChecker) Service {
+	return &service{
+		pswChecker: checker,
+	}
 }
 
 type ServiceMiddleware func(svc Service) Service
 
-type newVaultService struct{}
+type service struct {
+	pswChecker tools.PasswordChecker
+}
 
-func (newVaultService) Hash(ctx context.Context, password string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+func (s *service) Hash(ctx context.Context, password string) (string, error) {
+	hash, err := s.pswChecker.Hash(ctx, password)
 	if err != nil {
 		return "", err
 	}
 	return string(hash), nil
 }
 
-func (newVaultService) Validate(ctx context.Context, password, hash string) (bool, error) {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+func (s *service) Validate(ctx context.Context, password, hash string) (bool, error) {
+	ok, err := s.pswChecker.Validate(ctx, password, hash)
 	if err != nil {
-		return false, err
+		return ok, err
 	}
-	return true, nil
+	return ok, nil
 }
 
-func (newVaultService) HealthCheck() bool {
-	return true
+func (s *service) HealthCheck() bool {
+	return s.pswChecker.HealthCheck()
 }
 
 type Endpoints struct {
@@ -84,7 +77,6 @@ func (e Endpoints) Validate(ctx context.Context, password, hash string) (bool, e
 	return validateResp.Valid, nil
 }
 
-//HTTP AND NATS ENDPOINTS
 func MakeHashEndpoint(svc Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(hashRequest)
@@ -112,53 +104,5 @@ func MakeHealthEndpoint(svc Service) endpoint.Endpoint {
 		//req := request.(healthRequest)
 		v := svc.HealthCheck()
 		return healthResponse{Status: v}, nil
-	}
-}
-
-func NewEndpoints(svc Service, logger log.Logger, trace stdopentracing.Tracer) Endpoints {
-	//declare metrics
-	fieldKeys := []string{"method"}
-	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
-		Namespace: "Adexin",
-		Subsystem: "vault_service",
-		Name:      "request_count",
-		Help:      "Number of requests received",
-	}, fieldKeys)
-	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "Adexin",
-		Subsystem: "vault_service",
-		Name:      "request_latency_microseconds",
-		Help:      "Total duration of requests in microseconds",
-	}, fieldKeys)
-
-	svc = Metrics(requestCount, requestLatency)(svc)
-	svc = NewLoggingService(log.With(logger, "hash", "validate", "health"), svc)
-
-	var hashEndpoint endpoint.Endpoint
-	{
-		hashEndpoint = MakeHashEndpoint(svc)
-		hashEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(hashEndpoint)
-		hashEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(hashEndpoint)
-		hashEndpoint = opentracing.TraceServer(trace, "hash")(hashEndpoint)
-	}
-	var validateEndpoint endpoint.Endpoint
-	{
-		validateEndpoint = MakeValidateEndpoint(svc)
-		validateEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(validateEndpoint)
-		validateEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(validateEndpoint)
-		validateEndpoint = opentracing.TraceServer(trace, "validate")(validateEndpoint)
-	}
-	var healthEndpoint endpoint.Endpoint
-	{
-		healthEndpoint = MakeHealthEndpoint(svc)
-		healthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(healthEndpoint)
-		healthEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{Timeout: time.Duration(time.Second * 2)}))(healthEndpoint)
-		healthEndpoint = opentracing.TraceServer(trace, "health")(healthEndpoint)
-	}
-
-	return Endpoints{
-		ValidateEndpoint:    validateEndpoint,
-		VaultHealthEndpoint: healthEndpoint,
-		HashEndpoint:        hashEndpoint,
 	}
 }
