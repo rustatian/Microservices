@@ -12,21 +12,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ValeryPiashchynski/TaskManager/microservices/tools"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/go-kit/kit/ratelimit"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 
+	"github.com/ValeryPiashchynski/TaskManager/microservices/tools"
 	"github.com/ValeryPiashchynski/TaskManager/microservices/vault"
 	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
-	"github.com/go-kit/kit/circuitbreaker"
-	"github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/tracing/opentracing"
-	stdopentracing "github.com/opentracing/opentracing-go"
-	"github.com/sirupsen/logrus"
-	"github.com/sony/gobreaker"
-	"golang.org/x/time/rate"
 )
 
 func main() {
@@ -44,25 +36,29 @@ func main() {
 	logg := logrus.New()
 	logg.Out = os.Stdout
 
-	ctx := &vault.Context{
-		Log: logg,
-	}
-
-	var logger log.Logger
-	{
-		logger = log.NewLogfmtLogger(os.Stderr)
-		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
-		logger = log.With(logger, "caller", log.DefaultCaller)
-	}
-
 	pwdChecker := tools.NewPasswordChecker()
-	svc := vault.NewVaultService(pwdChecker)
-
-	tracer := stdopentracing.GlobalTracer()
-	reg := svcdiscovery.ServiceDiscovery().RegistrationViaHTTP(*consulAddr, *consulPort, vaultAddr, *vaultPort, *svcName, logger)
+	reg := svcdiscovery.ServiceDiscovery().RegistrationViaHTTP(*consulAddr, *consulPort, vaultAddr, *vaultPort, *svcName, logg)
 	defer reg.Deregister()
 
-	endpoints := NewService(svc, logger, tracer)
+	var vs vault.Service
+	fieldKeys := []string{"method"}
+	vs = vault.NewVaultService(pwdChecker)
+	vs = vault.NewLoggingService(logg, vs)
+	vs = vault.NewInstrumentingService(
+		kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: "Adexin",
+			Subsystem: "vault_service",
+			Name:      "request_count",
+			Help:      "Number of requests received",
+		}, fieldKeys),
+		kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+			Namespace: "Adexin",
+			Subsystem: "vault_service",
+			Name:      "request_latency_microseconds",
+			Help:      "Total duration of requests in microseconds",
+		}, fieldKeys),
+		vs,
+	)
 
 	errCh := make(chan error)
 	// Interrupt handler.
@@ -74,9 +70,9 @@ func main() {
 		stdlog.Fatal(<-errCh)
 	}()
 
-	r := vault.MakeVaultHttpHandler(endpoints, logger)
+	r := vault.MakeVaultHttpHandler(vs)
 	srv := &http.Server{
-		Handler:      vault.NewContextHandler(ctx, r),
+		Handler:      r,
 		Addr:         vaultAddr + ":" + *vaultPort,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
@@ -89,61 +85,19 @@ func main() {
 
 	go func() {
 		reg.Register()
-		logger.Log("transport", "HTTP", "addr", ":"+*vaultPort)
+		logg.WithFields(logrus.Fields{
+			"Transport":  "HTTP",
+			"Endpoint: ": net.JoinHostPort(vaultAddr, *vaultPort),
+		}).Info("Server started")
 
 		//Custom server with logrus
 		errCh <- srv.ListenAndServe()
 	}()
 
-	logger.Log("exit", <-errCh)
-}
+	logg.WithFields(logrus.Fields{
+		"exit": <-errCh,
+	}).Info("Server stopped")
 
-func NewService(svc vault.Service, logger log.Logger, trace stdopentracing.Tracer) vault.Endpoints {
-	//declare metrics
-	fieldKeys := []string{"method"}
-	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
-		Namespace: "Adexin",
-		Subsystem: "vault_service",
-		Name:      "request_count",
-		Help:      "Number of requests received",
-	}, fieldKeys)
-	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "Adexin",
-		Subsystem: "vault_service",
-		Name:      "request_latency_microseconds",
-		Help:      "Total duration of requests in microseconds",
-	}, fieldKeys)
-
-	svc = vault.Metrics(requestCount, requestLatency)(svc)
-	svc = vault.NewLoggingService(log.With(logger, "hash", "validate", "health"), svc)
-
-	var hashEndpoint endpoint.Endpoint
-	{
-		hashEndpoint = vault.MakeHashEndpoint(svc)
-		hashEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(hashEndpoint)
-		hashEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(hashEndpoint)
-		hashEndpoint = opentracing.TraceServer(trace, "hash")(hashEndpoint)
-	}
-	var validateEndpoint endpoint.Endpoint
-	{
-		validateEndpoint = vault.MakeValidateEndpoint(svc)
-		validateEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(validateEndpoint)
-		validateEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(validateEndpoint)
-		validateEndpoint = opentracing.TraceServer(trace, "validate")(validateEndpoint)
-	}
-	var healthEndpoint endpoint.Endpoint
-	{
-		healthEndpoint = vault.MakeHealthEndpoint(svc)
-		healthEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(healthEndpoint)
-		healthEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{Timeout: time.Duration(time.Second * 2)}))(healthEndpoint)
-		healthEndpoint = opentracing.TraceServer(trace, "health")(healthEndpoint)
-	}
-
-	return vault.Endpoints{
-		ValidateEndpoint:    validateEndpoint,
-		VaultHealthEndpoint: healthEndpoint,
-		HashEndpoint:        hashEndpoint,
-	}
 }
 
 func externalIP() (string, error) {

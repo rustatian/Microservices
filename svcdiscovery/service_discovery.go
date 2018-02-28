@@ -2,24 +2,25 @@ package svcdiscovery
 
 import (
 	"fmt"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/sd"
-	consulsd "github.com/go-kit/kit/sd/consul"
-	"github.com/google/uuid"
-	"github.com/hashicorp/consul/api"
 	"net"
 	"os"
 	"strconv"
 	"sync"
+
+	"github.com/go-kit/kit/sd"
+	"github.com/google/uuid"
+	"github.com/hashicorp/consul/api"
+	"github.com/sirupsen/logrus"
 )
 
 type Discovery interface {
-	RegistrationViaHTTP(consulAddr, consulPort, svcAddress, svcPort, svcName string, logger log.Logger) (registrar sd.Registrar)
-	RegistrationViaTCP(consulAddr, consulPort, svcAddress, svcPort, svcName string, logger log.Logger) (registrar sd.Registrar)
+	RegistrationViaHTTP(consulAddr, consulPort, svcAddress, svcPort, svcName string, logger *logrus.Logger) (registrar sd.Registrar)
+	RegistrationViaTCP(consulAddr, consulPort, svcAddress, svcPort, svcName string, logger *logrus.Logger) (registrar sd.Registrar)
 	Find(consulAddress, serviceName, tag *string) (address string, e error)
 }
 
-type serviceDiscovery struct{}
+type serviceDiscovery struct {
+}
 
 var (
 	instance *serviceDiscovery
@@ -33,7 +34,7 @@ func ServiceDiscovery() Discovery {
 	return instance
 }
 
-func client(consulAddr *string) *consulsd.Client {
+func consuldClient(consulAddr *string) *Client {
 	conf := api.DefaultConfig()
 	conf.Address = *consulAddr
 	consClnt, err := api.NewClient(conf)
@@ -42,11 +43,11 @@ func client(consulAddr *string) *consulsd.Client {
 		panic(err)
 	}
 
-	client := consulsd.NewClient(consClnt)
+	client := NewClient(consClnt)
 	return &client
 }
 
-func (s *serviceDiscovery) RegistrationViaHTTP(consulAddr, consulPort, svcAddress, svcPort, svcName string, logger log.Logger) (registrar sd.Registrar) {
+func (s *serviceDiscovery) RegistrationViaHTTP(consulAddr, consulPort, svcAddress, svcPort, svcName string, logger *logrus.Logger) (registrar sd.Registrar) {
 
 	consulConfig := api.DefaultConfig()
 	if len(consulAddr) > 0 {
@@ -55,7 +56,9 @@ func (s *serviceDiscovery) RegistrationViaHTTP(consulAddr, consulPort, svcAddres
 
 	consulClient, err := api.NewClient(consulConfig)
 	if err != nil {
-		logger.Log("err", err)
+		logger.WithFields(logrus.Fields{
+			"error": err,
+		}).Error("RegistrationViaHTTP error")
 		os.Exit(1)
 	}
 
@@ -81,11 +84,11 @@ func (s *serviceDiscovery) RegistrationViaHTTP(consulAddr, consulPort, svcAddres
 		Check:   &check,
 	}
 
-	return consulsd.NewRegistrar(consulsd.NewClient(consulClient), &asr, logger)
+	return NewRegistrar(NewClient(consulClient), &asr, logger)
 
 }
 
-func (s *serviceDiscovery) RegistrationViaTCP(consulAddr, consulPort, svcAddress, svcPort, svcName string, logger log.Logger) (registrar sd.Registrar) {
+func (s *serviceDiscovery) RegistrationViaTCP(consulAddr, consulPort, svcAddress, svcPort, svcName string, logger *logrus.Logger) (registrar sd.Registrar) {
 
 	consulConfig := api.DefaultConfig()
 	if len(consulAddr) > 0 {
@@ -94,7 +97,9 @@ func (s *serviceDiscovery) RegistrationViaTCP(consulAddr, consulPort, svcAddress
 
 	consulClient, err := api.NewClient(consulConfig)
 	if err != nil {
-		logger.Log("err", err)
+		logger.WithFields(logrus.Fields{
+			"error": err,
+		}).Error("RegistrationViaHTTP error")
 		os.Exit(1)
 	}
 
@@ -120,12 +125,12 @@ func (s *serviceDiscovery) RegistrationViaTCP(consulAddr, consulPort, svcAddress
 		Check:   &check,
 	}
 
-	return consulsd.NewRegistrar(consulsd.NewClient(consulClient), &asr, logger)
+	return NewRegistrar(NewClient(consulClient), &asr, logger)
 
 }
 
 func (s *serviceDiscovery) Find(consulAddress, serviceName, tag *string) (address string, e error) {
-	srventry, _, err := (*client(consulAddress)).Service(*serviceName, *tag, true, &api.QueryOptions{})
+	srventry, _, err := (*consuldClient(consulAddress)).Service(*serviceName, *tag, true, &api.QueryOptions{})
 	if err != nil {
 		fmt.Println(err)
 	}

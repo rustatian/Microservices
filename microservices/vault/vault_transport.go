@@ -5,33 +5,30 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
-	"github.com/go-kit/kit/log"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	stdprometheus "github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/sirupsen/logrus"
 )
 
 // Make Http Handler
-func MakeVaultHttpHandler(endpoint Endpoints, logger log.Logger) http.Handler {
+func MakeVaultHttpHandler(svc Service) http.Handler {
 	r := mux.NewRouter()
 
 	options := []httptransport.ServerOption{
-		httptransport.ServerErrorLogger(logger),
+		//httptransport.ServerErrorLogger(logger),
 		httptransport.ServerErrorEncoder(encodeError),
 	}
 
 	r.Methods("POST").Path("/hash").Handler(httptransport.NewServer(
-		endpoint.HashEndpoint,
+		makeHashEndpoint(svc),
 		decodeHTTPHashRequest,
 		encodeHTTPHashResponse,
 		options...,
 	))
 
 	r.Methods("POST").Path("/validate").Handler(httptransport.NewServer(
-		endpoint.ValidateEndpoint,
+		makeValidateEndpoint(svc),
 		decodeHTTPValidateRequest,
 		encodeHTTPValidateResponse,
 		options...,
@@ -39,7 +36,7 @@ func MakeVaultHttpHandler(endpoint Endpoints, logger log.Logger) http.Handler {
 
 	//GET /health
 	r.Methods("GET").Path("/health").Handler(httptransport.NewServer(
-		endpoint.VaultHealthEndpoint,
+		makeHealthEndpoint(svc),
 		decodeHTTPHealthRequest,
 		encodeHTTPHealthResponse,
 		options...,
@@ -67,19 +64,6 @@ func decodeHTTPValidateRequest(ctx context.Context, r *http.Request) (interface{
 }
 
 func decodeHTTPHealthRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	contx, err := GetContext(r)
-	if err != nil {
-		contx.Log.WithFields(logrus.Fields{
-			"Error":   err.Error(),
-			"request": r,
-		}).Error("Decode health request error")
-	}
-
-	contx.Log.WithFields(logrus.Fields{
-		"time":    time.Now().Format(time.RFC3339Nano),
-		"Method":  "decodeHTTPHealthRequest",
-		"request": r,
-	}).Info("Decode health request")
 	return healthRequest{}, nil
 }
 

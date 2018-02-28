@@ -6,13 +6,11 @@ import (
 	"time"
 )
 
-func Metrics(requestCount metrics.Counter, requestLatency metrics.Histogram) ServiceMiddleware {
-	return func(svc Service) Service {
-		return metricsMiddleware{
-			svc,
-			requestCount,
-			requestLatency,
-		}
+func NewInstrumentingService(requestCount metrics.Counter, requestLatency metrics.Histogram, s Service) Service {
+	return &metricsMiddleware{
+		requestCount:   requestCount,
+		requestLatency: requestLatency,
+		Service:        s,
 	}
 }
 
