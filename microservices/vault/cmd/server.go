@@ -4,7 +4,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	stdlog "log"
 	"net"
 	"net/http"
 	"os"
@@ -60,16 +59,8 @@ func main() {
 		vs,
 	)
 
-	errCh := make(chan error)
 	// Interrupt handler.
 	c := make(chan os.Signal)
-
-	//Error handler
-	go func() {
-		//logger.Log("nats error:", <-errCh)
-		stdlog.Fatal(<-errCh)
-	}()
-
 	r := vault.MakeVaultHttpHandler(vs)
 	srv := &http.Server{
 		Handler:      r,
@@ -78,6 +69,7 @@ func main() {
 		ReadTimeout:  15 * time.Second,
 	}
 
+	errCh := make(chan error)
 	go func() {
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		errCh <- fmt.Errorf("%s", <-c)
@@ -97,6 +89,7 @@ func main() {
 	logg.WithFields(logrus.Fields{
 		"exit": <-errCh,
 	}).Info("Server stopped")
+	time.Sleep(time.Second * 1)
 
 }
 

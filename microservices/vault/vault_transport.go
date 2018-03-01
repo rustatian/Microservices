@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	//"time"
 
+	//vp "github.com/ValeryPiashchynski/TaskManager/microservices/tools/http"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	stdprometheus "github.com/prometheus/client_golang/prometheus/promhttp"
@@ -24,6 +26,7 @@ func MakeVaultHttpHandler(svc Service) http.Handler {
 		makeHashEndpoint(svc),
 		decodeHTTPHashRequest,
 		encodeHTTPHashResponse,
+		//5,10,5,time.Millisecond * 5,nil,
 		options...,
 	))
 

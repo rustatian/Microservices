@@ -2,7 +2,6 @@ package vault
 
 import (
 	"context"
-
 	"github.com/ValeryPiashchynski/TaskManager/microservices/tools"
 )
 

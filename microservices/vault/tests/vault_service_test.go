@@ -1,13 +1,16 @@
 package tests
 
 import (
-	"TaskManager/microservices/vault"
 	"context"
 	"testing"
+
+	"github.com/ValeryPiashchynski/TaskManager/microservices/tools"
+	"github.com/ValeryPiashchynski/TaskManager/microservices/vault"
 )
 
 func TestVaultService(t *testing.T) {
-	srv := vault.NewVaultService()
+	pswd := tools.NewPasswordChecker()
+	srv := vault.NewVaultService(pswd)
 	ctx := context.Background()
 	h, err := srv.Hash(ctx, "password")
 	if err != nil {
