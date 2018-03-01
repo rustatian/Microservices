@@ -2,7 +2,6 @@ package vault
 
 import (
 	"context"
-	"github.com/ValeryPiashchynski/TaskManager/microservices/tools"
 )
 
 type Service interface {
@@ -11,7 +10,7 @@ type Service interface {
 	HealthCheck() bool
 }
 
-func NewVaultService(checker tools.PasswordChecker) Service {
+func NewVaultService(checker Service) Service {
 	return &service{
 		pswChecker: checker,
 	}
@@ -20,7 +19,7 @@ func NewVaultService(checker tools.PasswordChecker) Service {
 type ServiceMiddleware func(svc Service) Service
 
 type service struct {
-	pswChecker tools.PasswordChecker
+	pswChecker Service
 }
 
 func (s *service) Hash(ctx context.Context, password string) (string, error) {
