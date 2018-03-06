@@ -28,7 +28,7 @@ func (g *grpcServer) Validate(ctx context.Context, r *pb_vault.ValidateRequest) 
 	return resp.(*pb_vault.ValidateResponce), nil
 }
 
-func (g *grpcServer) Health(ctx context.Context, r *pb_vault.HealthRequest) (*pb_vault.HealthResponse, error) {
+func (g *grpcServer) HealthCheck(ctx context.Context, r *pb_vault.HealthRequest) (*pb_vault.HealthResponse, error) {
 	_, resp, err := g.hash.ServeGRPC(ctx, r)
 	if err != nil {
 		return nil, err

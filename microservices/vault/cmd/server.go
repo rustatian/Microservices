@@ -4,6 +4,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/ValeryPiashchynski/TaskManager/microservices/proto/vault"
+	"google.golang.org/grpc"
 	"net"
 	"net/http"
 	"os"
@@ -84,6 +86,20 @@ func main() {
 
 		//Custom server with logrus
 		errCh <- srv.ListenAndServe()
+	}()
+
+	go func() {
+		listener, err := net.Listen("tcp", ":8081")
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		handler := vault.MakeVaultGrpcHandler(vs)
+		gRPCServer := grpc.NewServer()
+		pb_vault.RegisterVaultServer(gRPCServer, handler)
+		errCh <- gRPCServer.Serve(listener)
+
 	}()
 
 	logg.WithFields(logrus.Fields{
