@@ -12,18 +12,18 @@ type Service interface {
 
 func NewVaultService(checker Service) Service {
 	return &service{
-		pswChecker: checker,
+		hasher: checker,
 	}
 }
 
 type ServiceMiddleware func(svc Service) Service
 
 type service struct {
-	pswChecker Service
+	hasher Service
 }
 
 func (s *service) Hash(ctx context.Context, password string) (string, error) {
-	hash, err := s.pswChecker.Hash(ctx, password)
+	hash, err := s.hasher.Hash(ctx, password)
 	if err != nil {
 		return "", err
 	}
@@ -31,7 +31,7 @@ func (s *service) Hash(ctx context.Context, password string) (string, error) {
 }
 
 func (s *service) Validate(ctx context.Context, password, hash string) (bool, error) {
-	ok, err := s.pswChecker.Validate(ctx, password, hash)
+	ok, err := s.hasher.Validate(ctx, password, hash)
 	if err != nil {
 		return ok, err
 	}
@@ -39,7 +39,7 @@ func (s *service) Validate(ctx context.Context, password, hash string) (bool, er
 }
 
 func (s *service) HealthCheck() bool {
-	return s.pswChecker.HealthCheck()
+	return s.hasher.HealthCheck()
 }
 
 //type Endpoints struct {

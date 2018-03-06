@@ -15,8 +15,8 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 
-	"github.com/ValeryPiashchynski/TaskManager/microservices/tools"
 	"github.com/ValeryPiashchynski/TaskManager/microservices/vault"
+	"github.com/ValeryPiashchynski/TaskManager/microservices/vault/application"
 	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
 )
 
@@ -35,7 +35,7 @@ func main() {
 	logg := logrus.New()
 	logg.Out = os.Stdout
 
-	pwdChecker := tools.NewPasswordChecker()
+	pwdChecker := application.NewPasswordChecker()
 	reg := svcdiscovery.ServiceDiscovery().RegistrationViaHTTP(*consulAddr, *consulPort, vaultAddr, *vaultPort, *svcName, logg)
 	defer reg.Deregister()
 

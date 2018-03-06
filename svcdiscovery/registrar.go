@@ -53,6 +53,6 @@ func (p *Registrar) Deregister() {
 	} else {
 		p.logger.WithFields(logrus.Fields{
 			"action: ": "deregister",
-		}).Info("Registered")
+		}).Info("Deregistered")
 	}
 }

@@ -5,6 +5,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
 	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
@@ -19,10 +24,6 @@ import (
 	"github.com/sony/gobreaker"
 	"github.com/spf13/viper"
 	"golang.org/x/time/rate"
-	"io/ioutil"
-	"net/http"
-	"os"
-	"time"
 )
 
 var (
