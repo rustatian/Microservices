@@ -4,8 +4,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/ValeryPiashchynski/TaskManager/microservices/proto/vault"
-	"google.golang.org/grpc"
 	"net"
 	"net/http"
 	"os"
@@ -13,10 +11,12 @@ import (
 	"syscall"
 	"time"
 
-	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"google.golang.org/grpc"
+
+	stdopentracing "github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 
+	"github.com/ValeryPiashchynski/TaskManager/microservices/proto/vault"
 	"github.com/ValeryPiashchynski/TaskManager/microservices/vault"
 	"github.com/ValeryPiashchynski/TaskManager/microservices/vault/application"
 	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
@@ -37,33 +37,16 @@ func main() {
 	logg := logrus.New()
 	logg.Out = os.Stdout
 
-	pwdChecker := application.NewPasswordChecker()
 	reg := svcdiscovery.ServiceDiscovery().RegistrationViaHTTP(*consulAddr, *consulPort, vaultAddr, *vaultPort, *svcName, logg)
 	defer reg.Deregister()
 
-	var vs vault.Service
-	fieldKeys := []string{"method"}
-	vs = vault.NewVaultService(pwdChecker)
+	vs := vault.NewVaultService(application.NewPasswordChecker())
 	vs = vault.NewLoggingService(logg, vs)
-	vs = vault.NewInstrumentingService(
-		kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: "Adexin",
-			Subsystem: "vault_service",
-			Name:      "request_count",
-			Help:      "Number of requests received",
-		}, fieldKeys),
-		kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-			Namespace: "Adexin",
-			Subsystem: "vault_service",
-			Name:      "request_latency_microseconds",
-			Help:      "Total duration of requests in microseconds",
-		}, fieldKeys),
-		vs,
-	)
+	vsEndpoints := vault.NewVaultEndpoints(vs, *logg, stdopentracing.GlobalTracer())
 
 	// Interrupt handler.
 	c := make(chan os.Signal)
-	r := vault.MakeVaultHttpHandler(vs)
+	r := vault.MakeVaultHttpHandler(vsEndpoints, *logg)
 	srv := &http.Server{
 		Handler:      r,
 		Addr:         vaultAddr + ":" + *vaultPort,
@@ -98,6 +81,11 @@ func main() {
 		handler := vault.MakeVaultGrpcHandler(vs)
 		gRPCServer := grpc.NewServer()
 		pb_vault.RegisterVaultServer(gRPCServer, handler)
+		logg.WithFields(logrus.Fields{
+			"Transport":  "TCP",
+			"Endpoint: ": net.JoinHostPort("localhost", ":8081"),
+		}).Info("Server started")
+
 		errCh <- gRPCServer.Serve(listener)
 
 	}()

@@ -10,7 +10,7 @@ import (
 
 func TestVaultService(t *testing.T) {
 	pswd := tools.NewPasswordChecker()
-	srv := vault.NewVaultService(pswd)
+	srv := vault.newVaultService(pswd)
 	ctx := context.Background()
 	h, err := srv.Hash(ctx, "password")
 	if err != nil {

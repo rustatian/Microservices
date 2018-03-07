@@ -6,39 +6,40 @@ import (
 	"fmt"
 	"net/http"
 
-	//vp "github.com/ValeryPiashchynski/TaskManager/microservices/tools/http"
-	httptransport "github.com/go-kit/kit/transport/http"
+	"github.com/sirupsen/logrus"
+
+	//httptransport "github.com/go-kit/kit/transport/http"
+	customhttptransport "github.com/ValeryPiashchynski/TaskManager/microservices/vault/infrastructure"
 	"github.com/gorilla/mux"
 	stdprometheus "github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // Make Http Handler
-func MakeVaultHttpHandler(svc Service) http.Handler {
+func MakeVaultHttpHandler(endpoints Endpoints, logger logrus.Logger) http.Handler {
 	r := mux.NewRouter()
 
-	options := []httptransport.ServerOption{
-		//httptransport.ServerErrorLogger(logger),
-		httptransport.ServerErrorEncoder(encodeError),
+	options := []customhttptransport.ServerOption{
+		customhttptransport.ServerErrorLogger(logger),
+		customhttptransport.ServerErrorEncoder(encodeError),
 	}
 
-	r.Methods("POST").Path("/hash").Handler(httptransport.NewServer(
-		makeHashEndpoint(svc),
+	r.Methods("POST").Path("/hash").Handler(customhttptransport.NewServer(
+		endpoints.HashEndpoint,
 		decodeHTTPHashRequest,
 		encodeHTTPHashResponse,
-		//5,10,5,time.Millisecond * 5,nil,
 		options...,
 	))
 
-	r.Methods("POST").Path("/validate").Handler(httptransport.NewServer(
-		makeValidateEndpoint(svc),
+	r.Methods("POST").Path("/validate").Handler(customhttptransport.NewServer(
+		endpoints.ValidateEndpoint,
 		decodeHTTPValidateRequest,
 		encodeHTTPValidateResponse,
 		options...,
 	))
 
 	//GET /health
-	r.Methods("GET").Path("/health").Handler(httptransport.NewServer(
-		makeHealthEndpoint(svc),
+	r.Methods("GET").Path("/health").Handler(customhttptransport.NewServer(
+		endpoints.HealthCheckEndpoint,
 		decodeHTTPHealthRequest,
 		encodeHTTPHealthResponse,
 		options...,

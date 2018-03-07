@@ -9,75 +9,78 @@ import (
 )
 
 func MakeVaultGrpcHandler(svc Service) pb_vault.VaultServer {
-	options := []grpctransport.ServerOption{
-		//httptransport.ServerErrorLogger(logger),
-		//grpctransport.ServerErrorEncoder(encodeError),
-	}
+	options := []grpctransport.ServerOption{}
 
 	return &grpcServer{
 		hash: grpctransport.NewServer(
 			makeHashEndpoint(svc),
-			decodeGRPCHashRequest,
-			encodeGRPCHashResponse,
+			DecodeGRPCHashRequest,
+			EncodeGRPCHashResponse,
 			options...,
 		),
 		validate: grpctransport.NewServer(
 			makeValidateEndpoint(svc),
-			decodeGRPCValidateRequest,
-			encodeGRPCValidateResponse,
+			DecodeGRPCValidateRequest,
+			EncodeGRPCValidateResponse,
 			options...,
 		),
 		health: grpctransport.NewServer(
 			makeHealthEndpoint(svc),
-			decodeGRPCHealthRequest,
-			encodeGRPCHealthResponse,
+			DecodeGRPCHealthRequest,
+			EncodeGRPCHealthResponse,
 			options...,
 		),
 	}
 }
 
-func decodeGRPCHashRequest(ctx context.Context, r interface{}) (interface{}, error) {
+func DecodeGRPCHashRequest(ctx context.Context, r interface{}) (interface{}, error) {
 	req := r.(*pb_vault.HashRequest)
 	return hashRequest{Password: req.Password}, nil
 }
-
-func encodeGRPCHashResponse(ctx context.Context, r interface{}) (interface{}, error) {
-	res := r.(hashResponse)
-	return &pb_vault.HashResponce{Hash: res.Hash, Err: res.Err.Error()},
-		nil
-}
-
-func decodeGRPCHashResponse(ctx context.Context, r interface{}) (interface{}, error) {
+func DecodeGRPCHashResponse(ctx context.Context, r interface{}) (interface{}, error) {
 	res := r.(*pb_vault.HashResponce)
 	return hashResponse{Hash: res.Hash, Err: fmt.Errorf(res.Err)}, nil
 }
-func encodeGRPCValidateRequest(ctx context.Context, r interface{}) (interface{}, error) {
+
+func EncodeGRPCHashResponse(ctx context.Context, r interface{}) (interface{}, error) {
+	res := r.(hashResponse)
+	if res.Err != nil {
+		return nil, res.Err
+	}
+	return &pb_vault.HashResponce{Hash: res.Hash, Err: ""}, nil
+}
+func EncodeGRPCHashRequest(ctx context.Context, r interface{}) (interface{}, error) {
+	req := r.(hashRequest)
+	return &pb_vault.HashRequest{Password: req.Password}, nil
+}
+
+func EncodeGRPCValidateRequest(ctx context.Context, r interface{}) (interface{}, error) {
 	req := r.(validateRequest)
 	return &pb_vault.ValidateRequest{Password: req.Password,
 		Hash: req.Hash}, nil
 }
 
-func decodeGRPCValidateRequest(ctx context.Context, r interface{}) (interface{}, error) {
+func DecodeGRPCValidateRequest(ctx context.Context, r interface{}) (interface{}, error) {
 	req := r.(*pb_vault.ValidateRequest)
 	return validateRequest{Password: req.Password,
 		Hash: req.Hash}, nil
 }
-func encodeGRPCValidateResponse(ctx context.Context, r interface{}) (interface{}, error) {
+func EncodeGRPCValidateResponse(ctx context.Context, r interface{}) (interface{}, error) {
 	res := r.(validateResponse)
 	return &pb_vault.ValidateResponce{Valid: res.Valid}, nil
 }
 
-func decodeGRPCValidateResponse(ctx context.Context, r interface{}) (interface{}, error) {
+func DecodeGRPCValidateResponse(ctx context.Context, r interface{}) (interface{}, error) {
 	res := r.(*pb_vault.ValidateResponce)
 	return validateResponse{Valid: res.Valid}, nil
 }
 
-func decodeGRPCHealthRequest(ctx context.Context, r interface{}) (interface{}, error) {
+func DecodeGRPCHealthRequest(ctx context.Context, r interface{}) (interface{}, error) {
 	//req := r.(*pb_vault.HealthRequest)
 	return healthRequest{}, nil
 }
 
-func encodeGRPCHealthResponse(ctx context.Context, r interface{}) (interface{}, error) {
+func EncodeGRPCHealthResponse(ctx context.Context, r interface{}) (interface{}, error) {
 	//res := r.(healthResponse)
 	return &pb_vault.HealthResponse{},
 		nil
