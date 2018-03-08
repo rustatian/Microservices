@@ -19,8 +19,7 @@ func main() {
 	)
 	flag.Parse()
 	ctx := context.Background()
-	conn, err := grpc.Dial(*grpcAddr, grpc.WithInsecure(),
-		grpc.WithTimeout(1*time.Second))
+	conn, err := grpc.Dial(*grpcAddr, grpc.WithInsecure(), grpc.WithTimeout(1*time.Second))
 	if err != nil {
 		log.Fatalln("gRPC dial:", err)
 	}

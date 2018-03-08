@@ -242,14 +242,14 @@ func NewEndpoints(svc Service, logger log.Logger, tracer stdopentracing.Tracer) 
 
 	fieldOps := []string{"method"}
 	regSvcCounter := prometheus.NewCounterFrom(kitprometheus.CounterOpts{
-		Namespace: "Adexin",
+		Namespace: "ValeryPiashchynski",
 		Subsystem: "reg_service",
 		Name:      "request_count",
 		Help:      "Number of requests received",
 	}, fieldOps)
 
 	regSvcHist := prometheus.NewHistogramFrom(kitprometheus.HistogramOpts{
-		Namespace: "Adexin",
+		Namespace: "ValeryPiashchynski",
 		Subsystem: "reg_service",
 		Name:      "request_latency_microseconds",
 		Help:      "Number of requests received",

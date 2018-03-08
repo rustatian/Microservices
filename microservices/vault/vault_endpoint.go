@@ -114,13 +114,13 @@ func NewVaultEndpoints(svc Service, logger logrus.Logger, trace stdopentracing.T
 	fieldKeys := []string{"method"}
 	svc = NewInstrumentingService(
 		kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
-			Namespace: "Adexin",
+			Namespace: "ValeryPiashchynski",
 			Subsystem: "vault_service",
 			Name:      "request_count",
 			Help:      "Number of requests received",
 		}, fieldKeys),
 		kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-			Namespace: "Adexin",
+			Namespace: "ValeryPiashchynski",
 			Subsystem: "vault_service",
 			Name:      "request_latency_microseconds",
 			Help:      "Total duration of requests in microseconds",

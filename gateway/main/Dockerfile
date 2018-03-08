@@ -1,5 +1,5 @@
 FROM golang
-MAINTAINER Valery Piashchynski, Adexin
+MAINTAINER Valery Piashchynski
 #Dev or production
 ENV DEV False
 

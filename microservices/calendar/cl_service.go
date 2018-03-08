@@ -190,13 +190,13 @@ func MakeTasksEndpoint(svc TaskService) endpoint.Endpoint {
 func NewEndpoints(svc TaskService, logger log.Logger, trace stdopentracing.Tracer) Endpoints {
 	fieldKeys := []string{"method"}
 	requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
-		Namespace: "Adexin",
+		Namespace: "ValeryPiashchynski",
 		Subsystem: "vault_service",
 		Name:      "request_count",
 		Help:      "Number of requests received",
 	}, fieldKeys)
 	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "Adexin",
+		Namespace: "ValeryPiashchynski",
 		Subsystem: "vault_service",
 		Name:      "request_latency_microseconds",
 		Help:      "Total duration of requests in microseconds",

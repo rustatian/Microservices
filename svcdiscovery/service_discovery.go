@@ -80,7 +80,7 @@ func (s *serviceDiscovery) RegistrationViaHTTP(consulAddr, consulPort, svcAddres
 		Name:    svcName,
 		Address: svcAddress,
 		Port:    port,
-		Tags:    []string{svcName, "Adexin"},
+		Tags:    []string{svcName, "ValeryPiashchynski"},
 		Check:   &check,
 	}
 
@@ -121,7 +121,7 @@ func (s *serviceDiscovery) RegistrationViaTCP(consulAddr, consulPort, svcAddress
 		Name:    svcName,
 		Address: svcAddress,
 		Port:    port,
-		Tags:    []string{svcName, "Adexin"},
+		Tags:    []string{svcName, "ValeryPiashchynski"},
 		Check:   &check,
 	}
 
