@@ -33,6 +33,7 @@ func MakeVaultGrpcHandler(svc Service) pb_vault.VaultServer {
 	}
 }
 
+//Hash\\
 func DecodeGRPCHashRequest(ctx context.Context, r interface{}) (interface{}, error) {
 	req := r.(*pb_vault.HashRequest)
 	return hashRequest{Password: req.Password}, nil
@@ -54,6 +55,7 @@ func EncodeGRPCHashRequest(ctx context.Context, r interface{}) (interface{}, err
 	return &pb_vault.HashRequest{Password: req.Password}, nil
 }
 
+// Validate \\
 func EncodeGRPCValidateRequest(ctx context.Context, r interface{}) (interface{}, error) {
 	req := r.(validateRequest)
 	return &pb_vault.ValidateRequest{Password: req.Password,
@@ -75,6 +77,7 @@ func DecodeGRPCValidateResponse(ctx context.Context, r interface{}) (interface{}
 	return validateResponse{Valid: res.Valid}, nil
 }
 
+// Health \\
 func DecodeGRPCHealthRequest(ctx context.Context, r interface{}) (interface{}, error) {
 	//req := r.(*pb_vault.HealthRequest)
 	return healthRequest{}, nil
