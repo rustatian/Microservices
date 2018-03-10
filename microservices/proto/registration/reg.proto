@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package registration;
+
+service Registration {
+    rpc Registration(RegistrationRequest) returns (RegistrationResponse) {}
+    rpc UsernameValidation(UsernameValidationRequest) returns (UsernameValidationResponse) {}
+    rpc EmailValidation(EmailValidationRequest) returns (EmailValidationResponse) {}
+    rpc RegServiceHealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {}
+}
+
+message RegistrationRequest {
+    string username = 1;
+    string fullname = 2;
+    string email = 3;
+    string password = 4;
+}
+
+message RegistrationResponse {
+    bool IsSuccess = 1;
+    string err = 2;
+}
+
+message UsernameValidationRequest {
+    string username = 1;
+}
+
+message UsernameValidationResponse {
+    bool IsExist = 1;
+    string err = 2;
+}
+
+message EmailValidationRequest {
+    string email = 1;
+}
+
+message EmailValidationResponse {
+    bool IsExist = 1;
+    string err = 2;
+}
+
+message HealthCheckRequest {
+
+}
+
+message HealthCheckResponse {
+    bool status =1;
+}

@@ -40,7 +40,12 @@ func main() {
 	reg := svcdiscovery.ServiceDiscovery().RegistrationViaHTTP(*consulAddr, *consulPort, vaultAddr, *vaultPort, *svcName, logg)
 	defer reg.Deregister()
 
-	vs := vault.NewVaultService(application.NewPasswordChecker())
+	//variables of application level
+	hasher := application.NewBcryptHasher()
+	validator := application.NewBcryptValidator()
+	healthChecker := application.NewHttpHealthChecker()
+
+	vs := vault.NewVaultService(hasher, validator, healthChecker)
 	vs = vault.NewLoggingService(logg, vs)
 	vsEndpoints := vault.NewVaultEndpoints(vs, *logg, stdopentracing.GlobalTracer())
 

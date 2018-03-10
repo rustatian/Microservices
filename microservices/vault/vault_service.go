@@ -2,6 +2,8 @@ package vault
 
 import (
 	"context"
+
+	"github.com/ValeryPiashchynski/TaskManager/microservices/vault/application"
 )
 
 type Service interface {
@@ -10,20 +12,24 @@ type Service interface {
 	HealthCheck() bool
 }
 
-func NewVaultService(checker Service) Service {
+func NewVaultService(hasher application.Hasher, validator application.Validator, checker application.HealthChecker) Service {
 	return &service{
-		hasher: checker,
+		hash:          hasher,
+		validate:      validator,
+		healthChecker: checker,
 	}
 }
 
 type ServiceMiddleware func(svc Service) Service
 
 type service struct {
-	hasher Service
+	hash          application.Hasher
+	validate      application.Validator
+	healthChecker application.HealthChecker
 }
 
 func (s *service) Hash(ctx context.Context, password string) (string, error) {
-	hash, err := s.hasher.Hash(ctx, password)
+	hash, err := s.hash.Hash(ctx, password)
 	if err != nil {
 		return "", err
 	}
@@ -31,7 +37,7 @@ func (s *service) Hash(ctx context.Context, password string) (string, error) {
 }
 
 func (s *service) Validate(ctx context.Context, password, hash string) (bool, error) {
-	ok, err := s.hasher.Validate(ctx, password, hash)
+	ok, err := s.validate.Validate(ctx, password, hash)
 	if err != nil {
 		return ok, err
 	}
@@ -39,5 +45,5 @@ func (s *service) Validate(ctx context.Context, password, hash string) (bool, er
 }
 
 func (s *service) HealthCheck() bool {
-	return s.hasher.HealthCheck()
+	return s.healthChecker.HealthCheck()
 }

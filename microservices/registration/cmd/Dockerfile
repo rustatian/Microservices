@@ -16,7 +16,7 @@ ADD /svcdiscovery /go/src/TaskManager/svcdiscovery
 ADD /config /go/src/TaskManager/microservices/registration/main/config
 
 #Set workdir to import all packages
-WORKDIR /go/src/TaskManager/microservices/registration/main
+WORKDIR /go/src/TaskManager/microservices/registration/cmd
 RUN go get ./...
 
 #Build

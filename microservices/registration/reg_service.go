@@ -75,7 +75,9 @@ func NewRegService() Service {
 	return newRegService{}
 }
 
-type newRegService struct{}
+type newRegService struct {
+	db *sql.DB
+}
 
 type ServiceMiddleware func(svc Service) Service
 
