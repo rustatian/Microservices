@@ -20,7 +20,7 @@ scrape_configs:
         labels:
           group: 'local'
 
-  - job_name: 'ValeryPiashchynski'
+  - job_name: '0xdev'
     scrape_interval: 1s
     static_configs:
       - targets: ['localhost:10000', 'localhost:10001','localhost:10002','localhost:10003']

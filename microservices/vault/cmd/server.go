@@ -24,10 +24,11 @@ import (
 
 func main() {
 	var (
-		consulAddr = flag.String("consul.addr", "localhost", "consul address")
-		consulPort = flag.String("consul.port", "8500", "consul port")
-		vaultPort  = flag.String("vault.port", "10000", "vault port")
-		svcName    = flag.String("service.name", "vaultsvc", "Vault service name")
+		consulAddr    = flag.String("consul.addr", "localhost", "consul address")
+		consulPort    = flag.String("consul.port", "8500", "consul port")
+		vaultHttpPort = flag.String("vault.http", "10000", "vault port")
+		vaultTcpPort  = flag.String("vault.tcp", ":8081", "vault tcp port")
+		svcName       = flag.String("service.name", "vaultsvc", "Vault service name")
 	)
 
 	vaultAddr, _ := externalIP()
@@ -37,7 +38,7 @@ func main() {
 	logg := logrus.New()
 	logg.Out = os.Stdout
 
-	reg := svcdiscovery.ServiceDiscovery().RegistrationViaHTTP(*consulAddr, *consulPort, vaultAddr, *vaultPort, *svcName, logg)
+	reg := svcdiscovery.ServiceDiscovery().RegistrationViaHTTP(*consulAddr, *consulPort, vaultAddr, *vaultHttpPort, *svcName, logg)
 	defer reg.Deregister()
 
 	//variables of application level
@@ -54,7 +55,7 @@ func main() {
 	r := vault.MakeVaultHttpHandler(vsEndpoints, *logg)
 	srv := &http.Server{
 		Handler:      r,
-		Addr:         vaultAddr + ":" + *vaultPort,
+		Addr:         vaultAddr + ":" + *vaultHttpPort,
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
@@ -69,7 +70,7 @@ func main() {
 		reg.Register()
 		logg.WithFields(logrus.Fields{
 			"Transport":  "HTTP",
-			"Endpoint: ": net.JoinHostPort(vaultAddr, *vaultPort),
+			"Endpoint: ": net.JoinHostPort(vaultAddr, *vaultHttpPort),
 		}).Info("Server started")
 
 		//Custom server with logrus
@@ -77,7 +78,7 @@ func main() {
 	}()
 
 	go func() {
-		listener, err := net.Listen("tcp", ":8081")
+		listener, err := net.Listen("tcp", *vaultTcpPort)
 		if err != nil {
 			errCh <- err
 			return
@@ -88,7 +89,7 @@ func main() {
 		pb_vault.RegisterVaultServer(gRPCServer, handler)
 		logg.WithFields(logrus.Fields{
 			"Transport":  "TCP",
-			"Endpoint: ": net.JoinHostPort("localhost", ":8081"),
+			"Endpoint: ": net.JoinHostPort(vaultAddr, *vaultTcpPort),
 		}).Info("Server started")
 
 		errCh <- gRPCServer.Serve(listener)
