@@ -4,13 +4,16 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ValeryPiashchynski/TaskManager/microservices/tools"
 	"github.com/ValeryPiashchynski/TaskManager/microservices/vault"
+	"github.com/ValeryPiashchynski/TaskManager/microservices/vault/application"
 )
 
 func TestVaultService(t *testing.T) {
-	pswd := tools.NewPasswordChecker()
-	srv := vault.newVaultService(pswd)
+	hasher := application.NewBcryptHasher()
+	validator := application.NewBcryptValidator()
+	healthChecker := application.NewHttpHealthChecker()
+
+	srv := vault.NewVaultService(hasher, validator, healthChecker)
 	ctx := context.Background()
 	h, err := srv.Hash(ctx, "password")
 	if err != nil {
