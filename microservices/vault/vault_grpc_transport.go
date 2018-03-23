@@ -56,25 +56,22 @@ func EncodeGRPCHashRequest(ctx context.Context, r interface{}) (interface{}, err
 }
 
 // Validate \\
-func EncodeGRPCValidateRequest(ctx context.Context, r interface{}) (interface{}, error) {
-	req := r.(validateRequest)
-	return &pb_vault.ValidateRequest{Password: req.Password,
-		Hash: req.Hash}, nil
-}
-
 func DecodeGRPCValidateRequest(ctx context.Context, r interface{}) (interface{}, error) {
 	req := r.(*pb_vault.ValidateRequest)
 	return validateRequest{Password: req.Password,
 		Hash: req.Hash}, nil
 }
-func EncodeGRPCValidateResponse(ctx context.Context, r interface{}) (interface{}, error) {
-	res := r.(validateResponse)
-	return &pb_vault.ValidateResponce{Valid: res.Valid}, nil
-}
-
 func DecodeGRPCValidateResponse(ctx context.Context, r interface{}) (interface{}, error) {
 	res := r.(*pb_vault.ValidateResponce)
 	return validateResponse{Valid: res.Valid}, nil
+}
+func EncodeGRPCValidateRequest(ctx context.Context, r interface{}) (interface{}, error) {
+	req := r.(validateRequest)
+	return &pb_vault.ValidateRequest{Password: req.Password, Hash: req.Hash}, nil
+}
+func EncodeGRPCValidateResponse(ctx context.Context, r interface{}) (interface{}, error) {
+	res := r.(validateResponse)
+	return &pb_vault.ValidateResponce{Valid: res.Valid}, nil
 }
 
 // Health \\
@@ -82,7 +79,6 @@ func DecodeGRPCHealthRequest(ctx context.Context, r interface{}) (interface{}, e
 	//req := r.(*pb_vault.HealthRequest)
 	return healthRequest{}, nil
 }
-
 func EncodeGRPCHealthResponse(ctx context.Context, r interface{}) (interface{}, error) {
 	//res := r.(healthResponse)
 	return &pb_vault.HealthResponse{},

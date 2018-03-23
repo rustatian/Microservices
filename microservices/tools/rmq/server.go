@@ -1,4 +1,4 @@
-package nats
+package rmq
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	"github.com/nats-io/go-nats"
 	"github.com/sirupsen/logrus"
+	"github.com/streadway/amqp"
 )
 
 type Server struct {
@@ -19,12 +20,15 @@ type Server struct {
 	after  []ServerResponseFunc
 	logger logrus.Logger
 
-	Conn        *nats.Conn
-	WorkerCount int
-	QueueName   string
-	StopCh      chan os.Signal
-	QueueCh     chan *nats.Msg
-	ErrorCh     chan error
+	FlushInterval time.Duration
+	Conn          *amqp.Channel
+	MaxBatchSize  int
+	WorkerCount   int
+	QueueSize     int
+	QueueName     string
+	// StopCh        chan os.Signal
+	// QueueCh       chan *nats.Msg
+	// ErrorCh       chan error
 }
 
 func NewServer(
@@ -32,12 +36,15 @@ func NewServer(
 	dec DecodeRequestFunc,
 	enc EncodeResponseFunc,
 
-	NatsConn *nats.Conn,
+	RqChannel *amqp.Channel,
 	Logger logrus.Logger,
-	StopCh chan os.Signal,
-	WorkerCount int,
-	QueueName string,
-	ErrorCh chan error,
+	// StopCh chan os.Signal,
+	// MaxBatchSize int,
+	// WorkerCount int,
+	// QueueSize int,
+	// QueueName string,
+	// FlushInterval time.Duration,
+	// ErrorCh chan error,
 
 	options ...ServerOption,
 
@@ -48,12 +55,15 @@ func NewServer(
 		enc:    enc,
 		logger: Logger,
 
-		Conn:        NatsConn,
-		WorkerCount: WorkerCount,
-		QueueName:   QueueName,
-		StopCh:      StopCh,
-		QueueCh:     make(chan *nats.Msg), // QueueCh
-		ErrorCh:     ErrorCh,
+		Conn: RqChannel,
+		// FlushInterval: FlushInterval, //FlushInterval
+		// MaxBatchSize:  MaxBatchSize,
+		// WorkerCount:   WorkerCount,
+		// QueueSize:     QueueSize,
+		// QueueName:     QueueName,
+		// StopCh:        StopCh,
+		// QueueCh:       make(chan *nats.Msg), //QueueCh
+		// ErrorCh:       ErrorCh,
 	}
 
 	for _, option := range options {
@@ -93,63 +103,90 @@ func (s *Server) MsgHandler(msg *nats.Msg) {
 }
 
 func (s *Server) worker(id int) {
+	var buffer []*nats.Msg
 	logrus.WithFields(
 		logrus.Fields{
 			"worker started, N: ": id,
 		},
 	).Info("MsgHandler")
 
+	timer := time.NewTimer(s.FlushInterval)
+	defer timer.Stop()
+
 	for {
 		select {
 		case payload, opened := <-s.QueueCh:
 			if !opened {
-				logrus.WithFields(
-					logrus.Fields{
-						"channel closed, worker N: ": id,
-					},
-				).Info("worker")
+				if len(buffer) == 0 {
+					logrus.WithFields(
+						logrus.Fields{
+							"buffer is empty, get stop signal, worker N: ": id,
+						},
+					).Info("worker")
 
+					return
+				}
+				s.flush(id, buffer, "get stop signal")
 				return
 			}
-			s.flush(id, payload, "get stop signal")
+
+			buffer = append(buffer, payload)
+			if len(buffer) >= s.MaxBatchSize {
+				s.flush(id, buffer, "max size reached")
+				buffer = nil
+				timer.Reset(s.FlushInterval)
+			}
+		case <-timer.C:
+			//To prevent flushing empty buffer
+			if len(buffer) == 0 {
+				buffer = nil
+				timer.Reset(s.FlushInterval)
+			} else {
+				s.flush(id, buffer, "time limit reached")
+				buffer = nil
+				timer.Reset(s.FlushInterval)
+			}
 		}
 	}
 }
 
-func (s *Server) flush(workerId int, buffer *nats.Msg, reason string) {
+func (s *Server) flush(workerId int, buffer []*nats.Msg, reason string) {
 	defer func(tt time.Time) {
 		logrus.WithFields(
 			logrus.Fields{
 				"worker N ": workerId,
+				"flushed":   len(buffer),
 				"reason":    reason,
 				"ts":        time.Since(tt),
 			},
 		).Info("flush")
 	}(time.Now())
 
-	ctx := context.TODO()
-	request, err := s.dec(ctx, buffer)
-	if err != nil {
-		s.logger.Error("err", err)
-		s.ErrorCh <- err
-		return
-	}
+	for _, m := range buffer {
+		ctx := context.TODO()
+		request, err := s.dec(ctx, m)
+		if err != nil {
+			s.logger.Error("err", err)
+			s.ErrorCh <- err
+			return
+		}
 
-	response, err := s.e(ctx, request)
-	if err != nil {
-		s.logger.Error("err", err)
-		s.ErrorCh <- err
-		return
-	}
+		response, err := s.e(ctx, request)
+		if err != nil {
+			s.logger.Error("err", err)
+			s.ErrorCh <- err
+			return
+		}
 
-	payload, err := s.enc(ctx, response)
-	if err != nil {
-		s.logger.Error("err", err)
-		s.ErrorCh <- err
-		return
-	}
+		payload, err := s.enc(ctx, response)
+		if err != nil {
+			s.logger.Error("err", err)
+			s.ErrorCh <- err
+			return
+		}
 
-	s.Conn.Publish(buffer.Reply, payload)
+		s.Conn.Publish(m.Reply, payload)
+	}
 }
 
 func (s *Server) StartNatsWorkers(stop chan os.Signal, nc *nats.Conn, queueName string) {
@@ -166,9 +203,9 @@ func (s *Server) StartNatsWorkers(stop chan os.Signal, nc *nats.Conn, queueName 
 	).Info("workers stopped")
 
 	s.ErrorCh = make(chan error)
-
-	defer close(s.ErrorCh)
-	defer close(s.QueueCh)
+	s.QueueCh = make(chan *nats.Msg, s.QueueSize)
+	//defer close(s.ErrorCh)
+	//defer close(s.QueueCh)
 
 	wg := sync.WaitGroup{}
 	wg.Add(s.WorkerCount)

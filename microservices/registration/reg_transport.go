@@ -40,7 +40,7 @@ func MakeRegHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logger
 	))
 
 	r.Methods("GET").Path("/health").Handler(httptransport.NewServer(
-		endpoint.RegHealthCheckEnpoint,
+		endpoint.RegHealthCheckEndpoint,
 		decodeRegHealthCheckRequest,
 		encodeRegHealthCheckResponce,
 		options...,

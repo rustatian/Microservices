@@ -27,9 +27,7 @@ func main() {
 	vaultService := New(conn)
 
 	password := "12345678"
-	for i := 0; i <= 100; i++ {
-		hash(ctx, vaultService, password)
-	}
+	hash(ctx, vaultService, password)
 }
 
 func hash(ctx context.Context, service vault.Service, password string) {

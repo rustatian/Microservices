@@ -2,8 +2,9 @@ package vault
 
 import (
 	"context"
-	"github.com/go-kit/kit/metrics"
 	"time"
+
+	"github.com/go-kit/kit/metrics"
 )
 
 func NewInstrumentingService(requestCount metrics.Counter, requestLatency metrics.Histogram, s Service) Service {

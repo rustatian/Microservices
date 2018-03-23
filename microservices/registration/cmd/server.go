@@ -43,10 +43,10 @@ func main() {
 	endpoints := registration.NewEndpoints(svc, logger, tracer)
 
 	endpoint := registration.Endpoints{
-		RegEndpoint:           endpoints.RegEndpoint,
-		UsernameValidEndpoint: endpoints.UsernameValidEndpoint,
-		EmailValidEndpoint:    endpoints.EmailValidEndpoint,
-		RegHealthCheckEnpoint: endpoints.RegHealthCheckEnpoint,
+		RegEndpoint:            endpoints.RegEndpoint,
+		UsernameValidEndpoint:  endpoints.UsernameValidEndpoint,
+		EmailValidEndpoint:     endpoints.EmailValidEndpoint,
+		RegHealthCheckEndpoint: endpoints.RegHealthCheckEndpoint,
 	}
 
 	r := registration.MakeRegHttpHandler(ctx, endpoint, logger)

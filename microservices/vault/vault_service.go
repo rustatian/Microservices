@@ -2,7 +2,6 @@ package vault
 
 import (
 	"context"
-
 	"github.com/ValeryPiashchynski/TaskManager/microservices/vault/application"
 )
 
@@ -12,6 +11,7 @@ type Service interface {
 	HealthCheck() bool
 }
 
+// NewVaultService - constructor for vault service
 func NewVaultService(hasher application.Hasher, validator application.Validator, checker application.HealthChecker) Service {
 	return &service{
 		hash:          hasher,
