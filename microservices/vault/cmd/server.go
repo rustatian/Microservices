@@ -5,21 +5,19 @@ import (
 	"flag"
 	"fmt"
 	"net"
-	//"time"
-
-	//"net/http"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	//"time"
+	"time"
 
-	//"google.golang.org/grpc"
+	"google.golang.org/grpc"
 
 	gonats "github.com/nats-io/go-nats"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 
-	//"github.com/ValeryPiashchynski/TaskManager/microservices/proto/vault"
+	"github.com/ValeryPiashchynski/TaskManager/microservices/proto/vault"
 	"github.com/ValeryPiashchynski/TaskManager/microservices/vault"
 	"github.com/ValeryPiashchynski/TaskManager/microservices/vault/application"
 	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
@@ -30,8 +28,8 @@ func main() {
 		consulAddr    = flag.String("consul.addr", "localhost", "consul address")
 		consulPort    = flag.String("consul.port", "8500", "consul port")
 		vaultHttpPort = flag.String("vault.http", "10000", "vault port")
-		//vaultTcpPort  = flag.String("vault.tcp", ":8081", "vault tcp port")
-		svcName = flag.String("service.name", "vaultsvc", "Vault service name")
+		vaultTcpPort  = flag.String("vault.tcp", ":8081", "vault tcp port")
+		svcName       = flag.String("service.name", "vaultsvc", "Vault service name")
 	)
 
 	vaultAddr, _ := externalIP()
@@ -44,7 +42,7 @@ func main() {
 	reg := svcdiscovery.ServiceDiscovery().RegistrationViaHTTP(*consulAddr, *consulPort, vaultAddr, *vaultHttpPort, *svcName, logg)
 	defer reg.Deregister()
 
-	//variables of application level
+	// variables of application level
 	hasher := application.NewBcryptHasher()
 	validator := application.NewBcryptValidator()
 	healthChecker := application.NewHttpHealthChecker()
@@ -55,55 +53,55 @@ func main() {
 
 	// Interrupt handler.
 	c := make(chan os.Signal)
-	//r := vault.MakeVaultHttpHandler(vsEndpoints, *logg)
-	//srv := &http.Server{
-	//	Handler:      r,
-	//	Addr:         vaultAddr + ":" + *vaultHttpPort,
-	//	WriteTimeout: 15 * time.Second,
-	//	ReadTimeout:  15 * time.Second,
-	//}
+	r := vault.MakeVaultHttpHandler(vsEndpoints, *logg)
+	srv := &http.Server{
+		Handler:      r,
+		Addr:         vaultAddr + ":" + *vaultHttpPort,
+		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  15 * time.Second,
+	}
 
 	errCh := make(chan error)
 	go func() {
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		//errCh <- fmt.Errorf("%s", <-c)
+		errCh <- fmt.Errorf("%s", <-c)
 	}()
 
-	//go func() {
-	//	reg.Register()
-	//	logg.WithFields(logrus.Fields{
-	//		"Transport":  "HTTP",
-	//		"Endpoint: ": net.JoinHostPort(vaultAddr, *vaultHttpPort),
-	//	}).Info("Server started")
-	//
-	//	//Custom server with logrus
-	//	errCh <- srv.ListenAndServe()
-	//}()
-	//
-	//go func() {
-	//	listener, err := net.Listen("tcp", *vaultTcpPort)
-	//	if err != nil {
-	//		errCh <- err
-	//		return
-	//	}
-	//
-	//	handler := vault.MakeVaultGrpcHandler(vs)
-	//	gRPCServer := grpc.NewServer()
-	//	pb_vault.RegisterVaultServer(gRPCServer, handler)
-	//	logg.WithFields(logrus.Fields{
-	//		"Transport":  "TCP",
-	//		"Endpoint: ": net.JoinHostPort(vaultAddr, *vaultTcpPort),
-	//	}).Info("Server started")
-	//
-	//	errCh <- gRPCServer.Serve(listener)
-	//
-	//}()
+	go func() {
+		reg.Register()
+		logg.WithFields(logrus.Fields{
+			"Transport":  "HTTP",
+			"Endpoint: ": net.JoinHostPort(vaultAddr, *vaultHttpPort),
+		}).Info("Server started")
+
+		// Custom server with logrus
+		errCh <- srv.ListenAndServe()
+	}()
 
 	go func() {
-		//nc, er := gonats.Connect(gonats.DefaultURL)
-		//if er != nil {
-		//	errCh <- er
-		//}
+		listener, err := net.Listen("tcp", *vaultTcpPort)
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		handler := vault.MakeVaultGrpcHandler(vs)
+		gRPCServer := grpc.NewServer()
+		pb_vault.RegisterVaultServer(gRPCServer, handler)
+		logg.WithFields(logrus.Fields{
+			"Transport":  "TCP",
+			"Endpoint: ": net.JoinHostPort(vaultAddr, *vaultTcpPort),
+		}).Info("Server started")
+
+		errCh <- gRPCServer.Serve(listener)
+
+	}()
+
+	go func() {
+		// nc, er := gonats.Connect(gonats.DefaultURL)
+		// if er != nil {
+		// 	errCh <- er
+		// }
 		nc, err := gonats.Connect(gonats.DefaultURL)
 		gonats.DisconnectHandler(func(_ *gonats.Conn) {
 			fmt.Printf("Got disconnected!\n")
@@ -126,7 +124,7 @@ func main() {
 	logg.WithFields(logrus.Fields{
 		"exit": <-errCh,
 	}).Info("Server stopped")
-	//time.Sleep(time.Second * 5)
+	// time.Sleep(time.Second * 5)
 }
 
 func externalIP() (string, error) {

@@ -1,4 +1,4 @@
-package nats
+package old
 
 import (
 	"context"
@@ -11,6 +11,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var wg *sync.WaitGroup
+
 type Server struct {
 	e      endpoint.Endpoint
 	dec    DecodeRequestFunc
@@ -18,6 +20,8 @@ type Server struct {
 	before []ServerRequestFunc
 	after  []ServerResponseFunc
 	logger logrus.Logger
+
+	wg sync.WaitGroup
 
 	Conn        *nats.Conn
 	WorkerCount int
@@ -47,6 +51,8 @@ func NewServer(
 		dec:    dec,
 		enc:    enc,
 		logger: Logger,
+
+		wg: *wg,
 
 		Conn:        NatsConn,
 		WorkerCount: WorkerCount,
@@ -167,14 +173,10 @@ func (s *Server) StartNatsWorkers(stop chan os.Signal, nc *nats.Conn, queueName 
 
 	s.ErrorCh = make(chan error)
 
-	defer close(s.ErrorCh)
-	defer close(s.QueueCh)
-
-	wg := sync.WaitGroup{}
-	wg.Add(s.WorkerCount)
+	s.wg.Add(s.WorkerCount)
 	for i := 0; i < s.WorkerCount; i++ {
 		go func(id int) {
-			defer wg.Done()
+			defer s.wg.Done()
 			s.worker(id)
 		}(i)
 	}

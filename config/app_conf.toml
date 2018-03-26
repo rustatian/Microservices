@@ -1,0 +1,19 @@
+[DbCreds]
+serverDev = "host=127.0.0.1 dbname=postgres sslmode=disable port=32768 user=postgres password=1"
+serverProd = "host=127.0.0.1 dbname=postgres sslmode=disable port=5432 user=postgres password=1
+
+[SecretKey]
+key = "1"
+
+[Consul]
+addressDev = "http://127.0.0.1:8500"
+addressProd = "http://127.0.0.2:8500"
+
+[services]
+vault = "vaultsvc"
+registration = "regsvc"
+auth = "authsvc"
+tcal = "tcalsvc"
+
+[tags]
+tag = "ValeryPiashchynski"
