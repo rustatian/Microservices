@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"os"
 
 	gknats "github.com/ValeryPiashchynski/TaskManager/microservices/tools/nats"
 	customhttptransport "github.com/ValeryPiashchynski/TaskManager/microservices/vault/infrastructure"
@@ -14,38 +13,36 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func StartVaultNatsHandler(endpoint Endpoints, logger logrus.Logger, stopSignal chan os.Signal, conn *gonats.Conn, err chan error) http.Handler {
+func StartVaultNatsHandler(endpoint Endpoints, logger logrus.Logger, conn *gonats.Conn) http.Handler {
 	r := mux.NewRouter()
 	options := []customhttptransport.ServerOption{
 		customhttptransport.ServerErrorLogger(logger),
 		customhttptransport.ServerErrorEncoder(encodeError),
 	}
 
-	hashHandler := gknats.NewServer(
+	hashHandler := gknats.NewSubscriber(
 		endpoint.HashEndpoint,
 		decodeHashRequest,
 		encodeHashResponse,
-		conn,
-		logger,
-		stopSignal,
-		2,
-		"hash",
-		err,
 	)
-	conn.QueueSubscribe("hash", "hash", hashHandler.MsgHandler)
 
-	validateHandler := gknats.NewServer(
+	_, err := conn.QueueSubscribe("hash", "hash", hashHandler.ServeMsg(conn))
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	//defer hsub.Unsubscribe()
+
+	validateHandler := gknats.NewSubscriber(
 		endpoint.ValidateEndpoint,
 		decodeValidateRequest,
 		encodeValidateResponse,
-		conn,
-		logger,
-		stopSignal,
-		2,
-		"hash",
-		err,
 	)
-	conn.QueueSubscribe("validate", "validate", validateHandler.MsgHandler)
+
+	_, err = conn.QueueSubscribe("validate", "validate", validateHandler.ServeMsg(conn))
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	//defer vsub.Unsubscribe()
 
 	//GET /health
 	r.Methods("GET").Path("/health").Handler(customhttptransport.NewServer(
@@ -60,10 +57,10 @@ func StartVaultNatsHandler(endpoint Endpoints, logger logrus.Logger, stopSignal 
 }
 
 //NATS Encode/decode
-func encodeHashResponse(ctx context.Context, response interface{}) (r []byte, err error) {
+func encodeHashResponse(ctx context.Context, reply string, nc *gonats.Conn, response interface{}) (err error) {
 	resp := response.(hashResponse)
 	data, err := json.Marshal(resp)
-	return data, err
+	return nc.Publish(reply, data)
 }
 
 func decodeHashRequest(ctx context.Context, msg *gonats.Msg) (interface{}, error) {
@@ -74,10 +71,10 @@ func decodeHashRequest(ctx context.Context, msg *gonats.Msg) (interface{}, error
 	return request, nil
 }
 
-func encodeValidateResponse(ctx context.Context, response interface{}) (r []byte, err error) {
+func encodeValidateResponse(ctx context.Context, reply string, nc *gonats.Conn, response interface{}) (err error) {
 	resp := response.(validateResponse)
 	data, err := json.Marshal(resp)
-	return data, err
+	return nc.Publish(reply, data)
 }
 
 func decodeValidateRequest(ctx context.Context, msg *gonats.Msg) (interface{}, error) {

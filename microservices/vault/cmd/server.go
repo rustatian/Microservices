@@ -114,11 +114,11 @@ func main() {
 		})
 
 		if err != nil {
-			errCh <- err
+			println(err)
 			return
 		}
 
-		vault.StartVaultNatsHandler(vsEndpoints, *logg, c, nc, errCh)
+		vault.StartVaultNatsHandler(vsEndpoints, *logg, nc)
 	}()
 
 	logg.WithFields(logrus.Fields{
