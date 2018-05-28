@@ -4,13 +4,17 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
+	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery/test"
+	"github.com/streadway/amqp"
 	"google.golang.org/grpc"
 
 	gonats "github.com/nats-io/go-nats"
@@ -20,14 +24,13 @@ import (
 	"github.com/ValeryPiashchynski/TaskManager/microservices/proto/vault"
 	"github.com/ValeryPiashchynski/TaskManager/microservices/vault"
 	"github.com/ValeryPiashchynski/TaskManager/microservices/vault/application"
-	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
 )
 
 func main() {
 	var (
 		consulAddr    = flag.String("consul.addr", "localhost", "consul address")
-		consulPort    = flag.String("consul.port", "8500", "consul port")
-		vaultHttpPort = flag.String("vault.http", "10000", "vault port")
+		consulPort    = flag.Int("consul.port", 8500, "consul port")
+		vaultHttpPort = flag.Int("vault.http", 10000, "vault port")
 		vaultTcpPort  = flag.String("vault.tcp", ":8081", "vault tcp port")
 		svcName       = flag.String("service.name", "vaultsvc", "Vault service name")
 	)
@@ -39,8 +42,14 @@ func main() {
 	logg := logrus.New()
 	logg.Out = os.Stdout
 
-	reg := svcdiscovery.ServiceDiscovery().RegistrationViaHTTP(*consulAddr, *consulPort, vaultAddr, *vaultHttpPort, *svcName, logg)
-	defer reg.Deregister()
+	consPort := strconv.Itoa(*consulPort)
+	reg, err := sd.NewConsulHttpClient(net.JoinHostPort(*consulAddr, consPort))
+	if err != nil {
+		println(err.Error())
+	}
+	uuid, err := reg.RegisterViaHttp(*svcName, vaultAddr, *vaultHttpPort)
+	//reg := svcdiscovery.ServiceDiscovery().RegistrationViaHTTP(*consulAddr, *consulPort, vaultAddr, *vaultHttpPort, *svcName, logg)
+	defer reg.DeRegister(uuid)
 
 	// variables of application level
 	hasher := application.NewBcryptHasher()
@@ -48,7 +57,7 @@ func main() {
 	healthChecker := application.NewHttpHealthChecker()
 
 	vs := vault.NewVaultService(hasher, validator, healthChecker)
-	vs = vault.NewLoggingService(logg, vs)
+	//vs = vault.NewLoggingService(logg, vs)
 	vsEndpoints := vault.NewVaultEndpoints(vs, *logg, stdopentracing.GlobalTracer())
 
 	// Interrupt handler.
@@ -56,22 +65,25 @@ func main() {
 	r := vault.MakeVaultHttpHandler(vsEndpoints, *logg)
 	srv := &http.Server{
 		Handler:      r,
-		Addr:         vaultAddr + ":" + *vaultHttpPort,
+		Addr:         vaultAddr + ":" + "10000",
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
 
 	errCh := make(chan error)
+
 	go func() {
-		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 		errCh <- fmt.Errorf("%s", <-c)
 	}()
 
 	go func() {
-		reg.Register()
+		if err != nil {
+			println(err.Error())
+		}
 		logg.WithFields(logrus.Fields{
 			"Transport":  "HTTP",
-			"Endpoint: ": net.JoinHostPort(vaultAddr, *vaultHttpPort),
+			"Endpoint: ": net.JoinHostPort(vaultAddr, "10000"),
 		}).Info("Server started")
 
 		// Custom server with logrus
@@ -121,10 +133,76 @@ func main() {
 		vault.StartVaultNatsHandler(vsEndpoints, *logg, nc)
 	}()
 
+	go func() {
+		conn, err := amqp.Dial("amqp://guest@localhost:5672")
+		if err != nil {
+			errCh <- err
+		}
+
+		ch, err := conn.Channel()
+		if err != nil {
+			errCh <- err
+		}
+
+		q, err := ch.QueueDeclare(
+			"hash",
+			false,
+			false,
+			false,
+			false,
+			nil,
+		)
+
+		msgs, err := ch.Consume(
+			q.Name,
+			"",
+			true,
+			false,
+			false,
+			false,
+			nil,
+		)
+		if err != nil {
+			errCh <- err
+		}
+
+		nc, err := gonats.Connect(gonats.DefaultURL)
+		if err != nil {
+			errCh <- err
+		}
+
+		for {
+			select {
+			case mg, ok := <- msgs:
+				if !ok {
+					return
+				}
+
+				log.Printf("Received a message: %s", mg.Body)
+				nc.Publish("hash", mg.Body)
+
+				aa, _, _ := reg.FindService("vaultsvc", "vaultsvc", true, nil)
+				for _, a := range aa {
+					println(a.Checks.AggregatedStatus())
+					addr := a.Service.Address
+					println(addr)
+				}
+
+			case er := <-errCh:
+				println(er)
+				return
+			}
+		}
+	}()
+
+
+
 	logg.WithFields(logrus.Fields{
-		"exit": <-errCh,
+		"exit": <- errCh,
 	}).Info("Server stopped")
 	// time.Sleep(time.Second * 5)
+
+
 }
 
 func externalIP() (string, error) {

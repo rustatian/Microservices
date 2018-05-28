@@ -132,7 +132,6 @@ func NewVaultEndpoints(svc Service, logger logrus.Logger, trace stdopentracing.T
 		hashEndpoint = makeHashEndpoint(svc)
 		hashEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(hashEndpoint)
 		hashEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(time.Millisecond), 10))(hashEndpoint)
-		hashEndpoint = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(hashEndpoint)
 		hashEndpoint = opentracing.TraceServer(trace, "hash")(hashEndpoint)
 	}
 	var validateEndpoint endpoint.Endpoint

@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
-func NewLoggingService(log *logrus.Logger, s Service) Service {
+func NewLoggingService(log *zap.SugaredLogger, s Service) Service {
 	return &loggingService{
 		s,
 		log,
@@ -15,39 +15,39 @@ func NewLoggingService(log *logrus.Logger, s Service) Service {
 }
 
 func (s *loggingService) Hash(ctx context.Context, password string) (string, error) {
+	defer s.log.Sync()
 	defer func(begin time.Time) {
-		s.log.WithFields(logrus.Fields{
-			"ts":       time.Since(begin),
-			"password": password,
-		}).Info("hash request")
+		s.log.Infow("hash request",
+			"ts",     time.Since(begin),
+			"password: ", password,
+		)
 	}(time.Now())
 	return s.Service.Hash(ctx, password)
 }
 
 func (s *loggingService) Validate(ctx context.Context, password, hash string) (bool, error) {
+	defer s.log.Sync()
 	defer func(begin time.Time) {
-		s.log.WithFields(logrus.Fields{
-			"ts":         time.Since(begin),
-			"password: ": password,
-			"hash: ":     hash,
-		}).Info("validate request")
+		s.log.Infow("hash request",
+			"ts",     time.Since(begin),
+			"password: ", password,
+			"hash: ",     hash,
+		)
 	}(time.Now())
-
 	return s.Service.Validate(ctx, password, hash)
 }
 
 func (s *loggingService) HealthCheck() bool {
+	defer s.log.Sync()
 	defer func(begin time.Time) {
-		defer func() {
-			s.log.WithFields(logrus.Fields{
-				"ts": time.Since(begin),
-			}).Info("health request")
-		}()
+		s.log.Infow("hash request",
+			"ts",     time.Since(begin),
+		)
 	}(time.Now())
 	return s.Service.HealthCheck()
 }
 
 type loggingService struct {
 	Service
-	log *logrus.Logger
+	log *zap.SugaredLogger
 }

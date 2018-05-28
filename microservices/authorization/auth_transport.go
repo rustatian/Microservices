@@ -3,12 +3,14 @@ package authorization
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"strings"
+
+	"github.com/go-kit/kit/auth/jwt"
 	"github.com/go-kit/kit/log"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	stdprometheus "github.com/prometheus/client_golang/prometheus/promhttp"
-	"net/http"
-	"strings"
 )
 
 // Make Http Handler
@@ -24,7 +26,7 @@ func MakeAuthHttpHandler(_ context.Context, endpoint Endpoints, logger log.Logge
 		endpoint.LoginEndpoint,
 		decodeLoginRequest,
 		encodeLoginResponse,
-		options...,
+		append(options, httptransport.ServerBefore(jwt.HTTPToContext()))...,
 	))
 
 	//auth logout
