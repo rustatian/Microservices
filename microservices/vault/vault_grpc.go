@@ -1,7 +1,7 @@
 package vault
 
 import (
-	"github.com/ValeryPiashchynski/TaskManager/microservices/proto/vault"
+	"github.com/ValeryPiashchynski/Microservices/microservices/proto/vault"
 	grpctransport "github.com/go-kit/kit/transport/grpc"
 	"golang.org/x/net/context"
 )

@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	gknats "github.com/ValeryPiashchynski/TaskManager/microservices/tools/nats"
-	customhttptransport "github.com/ValeryPiashchynski/TaskManager/microservices/vault/infrastructure"
+	gknats "github.com/ValeryPiashchynski/Microservices/microservices/tools/nats"
+	customhttptransport "github.com/ValeryPiashchynski/Microservices/microservices/vault/infrastructure"
 	"github.com/gorilla/mux"
 	gonats "github.com/nats-io/go-nats"
 	stdprometheus "github.com/prometheus/client_golang/prometheus/promhttp"

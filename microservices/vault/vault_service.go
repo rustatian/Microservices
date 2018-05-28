@@ -2,7 +2,7 @@ package vault
 
 import (
 	"context"
-	"github.com/ValeryPiashchynski/TaskManager/microservices/vault/application"
+	"github.com/ValeryPiashchynski/Microservices/microservices/vault/application"
 )
 
 type Service interface {

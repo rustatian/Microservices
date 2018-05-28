@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	//httptransport "github.com/go-kit/kit/transport/http"
-	customhttptransport "github.com/ValeryPiashchynski/TaskManager/microservices/vault/infrastructure"
+	customhttptransport "github.com/ValeryPiashchynski/Microservices/microservices/vault/infrastructure"
 	"github.com/gorilla/mux"
 	stdprometheus "github.com/prometheus/client_golang/prometheus/promhttp"
 )

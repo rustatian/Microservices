@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery/test"
+	"github.com/ValeryPiashchynski/Microservices/svcdiscovery"
 	"github.com/streadway/amqp"
 	"google.golang.org/grpc"
 
@@ -21,9 +21,9 @@ import (
 	stdopentracing "github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 
-	"github.com/ValeryPiashchynski/TaskManager/microservices/proto/vault"
-	"github.com/ValeryPiashchynski/TaskManager/microservices/vault"
-	"github.com/ValeryPiashchynski/TaskManager/microservices/vault/application"
+	"github.com/ValeryPiashchynski/Microservices/microservices/proto/vault"
+	"github.com/ValeryPiashchynski/Microservices/microservices/vault"
+	"github.com/ValeryPiashchynski/Microservices/microservices/vault/application"
 )
 
 func main() {
@@ -43,7 +43,7 @@ func main() {
 	logg.Out = os.Stdout
 
 	consPort := strconv.Itoa(*consulPort)
-	reg, err := sd.NewConsulHttpClient(net.JoinHostPort(*consulAddr, consPort))
+	reg, err := svcdiscovery.NewConsulHttpClient(net.JoinHostPort(*consulAddr, consPort))
 	if err != nil {
 		println(err.Error())
 	}
@@ -173,7 +173,7 @@ func main() {
 
 		for {
 			select {
-			case mg, ok := <- msgs:
+			case mg, ok := <-msgs:
 				if !ok {
 					return
 				}
@@ -195,13 +195,10 @@ func main() {
 		}
 	}()
 
-
-
 	logg.WithFields(logrus.Fields{
-		"exit": <- errCh,
+		"exit": <-errCh,
 	}).Info("Server stopped")
 	// time.Sleep(time.Second * 5)
-
 
 }
 

@@ -4,15 +4,16 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/ValeryPiashchynski/TaskManager/gateway"
-	"github.com/go-kit/kit/log"
-	"github.com/gorilla/handlers"
 	ilog "log"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/ValeryPiashchynski/Microservices/gateway"
+	"github.com/go-kit/kit/log"
+	"github.com/gorilla/handlers"
 )
 
 func init() {
@@ -53,7 +54,7 @@ func main() {
 	go func() {
 		logger.Log("transport", "HTTPS", "addr", net.JoinHostPort(gwAddr, *httpPort))
 		handler := r
-		var loggetRoute http.Handler = handlers.LoggingHandler(os.Stdout, handler)
+		var loggetRoute = handlers.LoggingHandler(os.Stdout, handler)
 
 		//http.Serve(loggetRoute, gateway.NewCollectorHandler(collector))
 

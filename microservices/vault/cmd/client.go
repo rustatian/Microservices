@@ -7,8 +7,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/ValeryPiashchynski/TaskManager/microservices/proto/vault"
-	"github.com/ValeryPiashchynski/TaskManager/microservices/vault"
+	"github.com/ValeryPiashchynski/Microservices/microservices/proto/vault"
+	"github.com/ValeryPiashchynski/Microservices/microservices/vault"
 	grpctransport "github.com/go-kit/kit/transport/grpc"
 	"google.golang.org/grpc"
 )
