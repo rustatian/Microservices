@@ -2,14 +2,14 @@ package gateway
 
 import (
 	"fmt"
+	"github.com/ValeryPiashchynski/Microservices/svcdiscovery"
+	"github.com/gorilla/mux"
+	"github.com/hashicorp/consul/agent/consul"
+	"github.com/rs/cors"
+	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
 	"os"
-
-	"github.com/ValeryPiashchynski/TaskManager/svcdiscovery"
-	"github.com/gorilla/mux"
-	"github.com/rs/cors"
-	"github.com/spf13/viper"
 )
 
 var (
@@ -19,6 +19,7 @@ var (
 	authSvcName   string
 	tcalSvcName   string
 	tag           string
+	Client        servicediscovery.Client
 )
 
 func init() {
@@ -40,6 +41,12 @@ func init() {
 		tcalSvcName = viper.GetString("services.tcal")
 
 		tag = viper.GetString("tags.tag")
+
+		// TODO temporary, rewrite client init
+		Client, err = servicediscovery.NewDefaultConsulHTTPClient(consulAddress)
+		if err != nil {
+			panic(err)
+		}
 	} else {
 		viper.AddConfigPath("config")
 		viper.SetConfigName("app_conf")
@@ -58,6 +65,12 @@ func init() {
 		tcalSvcName = viper.GetString("services.tcal")
 
 		tag = viper.GetString("tags.tag")
+
+		// TODO temporary, rewrite client init
+		Client, err = servicediscovery.NewDefaultConsulHTTPClient(consulAddress)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -93,8 +106,7 @@ func MakeHttpHandler() http.Handler {
 
 //task calendar
 func tcal(writer http.ResponseWriter, request *http.Request) {
-	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &tcalSvcName, &tag)
-
+	addr, err := Client.FindService(&consulAddress, &tcalSvcName, &tag)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))

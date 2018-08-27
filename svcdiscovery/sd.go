@@ -1,12 +1,16 @@
-package svcdiscovery
+package servicediscovery
 
 import (
 	"fmt"
-	"strconv"
 
-	"github.com/google/uuid"
 	"github.com/hashicorp/consul/api"
 
+	"net"
+	"net/http"
+	"strconv"
+	"time"
+
+	"bitbucket.org/inturnco/go-sdk/helpers"
 	consul "github.com/hashicorp/consul/api"
 )
 
@@ -16,7 +20,7 @@ type Client interface {
 	FindService(string, string, bool, *consul.QueryOptions) ([]*consul.ServiceEntry, *consul.QueryMeta, error)
 
 	// Register a service with local agent
-	RegisterViaHttp(string, string, int) (string, error)
+	RegisterViaHTTP(string, string, string) (string, error)
 
 	// Deregister a service with local agent
 	DeRegister(string) error
@@ -26,10 +30,18 @@ type client struct {
 	consul *consul.Client
 }
 
-//NewConsul returns a Client interface for given consul address
-func NewConsulHttpClient(addr string) (Client, error) {
+// NewDefaultConsulHTTPClient returns a Client interface for given consul address
+// Default consul http client returns a default configuration for the client with provided address
+// By default it will use 15 second http client timeout and also default consul client config
+func NewDefaultConsulHTTPClient(addr string) (Client, error) {
 	config := consul.DefaultConfig()
+	cln := &http.Client{
+		Timeout: time.Duration(time.Second * 10),
+	}
+
 	config.Address = addr
+	config.HttpClient = cln
+
 	c, err := consul.NewClient(config)
 	if err != nil {
 		return nil, err
@@ -42,28 +54,37 @@ func NewConsulHttpClient(addr string) (Client, error) {
 	return &client, nil
 }
 
-// Register a service with consul local agent
-func (c *client) RegisterViaHttp(name, address string, port int) (string, error) {
-	prt := strconv.Itoa(port)
+// RegisterViaHTTP registers a service with consul local agent
+func (c *client) RegisterViaHTTP(name, address, port string) (string, error) {
 	check := api.AgentServiceCheck{
-		HTTP:     "http://" + address + ":" + prt + "/" + "health",
+		HTTP:     "http://" + net.JoinHostPort(address, port) + "/healthcheck",
 		Interval: "10s",
 		Timeout:  "1s",
 		Notes:    "Basic health checks",
 	}
 
-	Uuid := uuid.New().String()
+	// Generate UUID
+	UUID, err := helpers.GenerateUUID()
+	if err != nil {
+		return "", err
+	}
+
+	// Convert port to int to use in AgentServiceRegistration
+	portInt, err := strconv.Atoi(port)
+	if err != nil {
+		return "", err
+	}
 
 	asr := &api.AgentServiceRegistration{
-		ID:      Uuid,
+		ID:      UUID,
 		Name:    name,
 		Address: address,
-		Port:    port,
+		Port:    portInt,
 		Tags:    []string{name},
 		Check:   &check,
 	}
 
-	return Uuid, c.consul.Agent().ServiceRegister(asr)
+	return UUID, c.consul.Agent().ServiceRegister(asr)
 }
 
 // DeRegister a service with consul local agent
