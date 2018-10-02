@@ -1,8 +1,9 @@
 package gateway
 
 import (
-	"github.com/go-redis/redis"
 	"time"
+
+	"github.com/go-redis/redis"
 )
 
 func getUrlInRedis(serviceEndpoint string) (address <-chan string) {

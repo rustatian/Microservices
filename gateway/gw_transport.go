@@ -1,15 +1,15 @@
 package gateway
 
 import (
+	"Microservices/svcdiscovery"
 	"fmt"
-	"github.com/ValeryPiashchynski/Microservices/svcdiscovery"
-	"github.com/gorilla/mux"
-	"github.com/hashicorp/consul/agent/consul"
-	"github.com/rs/cors"
-	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
 	"os"
+
+	"github.com/gorilla/mux"
+	"github.com/rs/cors"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -106,7 +106,7 @@ func MakeHttpHandler() http.Handler {
 
 //task calendar
 func tcal(writer http.ResponseWriter, request *http.Request) {
-	addr, err := Client.FindService(&consulAddress, &tcalSvcName, &tag)
+	addr, _, err := Client.FindService(&consulAddress, &tcalSvcName, &tag)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(err.Error()))
@@ -148,7 +148,7 @@ func tcal(writer http.ResponseWriter, request *http.Request) {
 
 //authorization
 func login(writer http.ResponseWriter, request *http.Request) {
-	addr, err := svcdiscovery.ServiceDiscovery().Find(&consulAddress, &authSvcName, &tag)
+	addr, err := ServiceDiscovery().Find(&consulAddress, &authSvcName, &tag)
 
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)

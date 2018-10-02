@@ -2,9 +2,10 @@ package vault
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"net/http"
 )
 
 const ContextKey = "context"

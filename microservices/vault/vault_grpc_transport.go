@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ValeryPiashchynski/Microservices/microservices/proto/vault"
+	"Microservices/microservices/proto/vault"
+
 	grpctransport "github.com/go-kit/kit/transport/grpc"
 )
 

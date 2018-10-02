@@ -9,7 +9,8 @@ import (
 	"github.com/sirupsen/logrus"
 
 	//httptransport "github.com/go-kit/kit/transport/http"
-	customhttptransport "github.com/ValeryPiashchynski/Microservices/microservices/vault/infrastructure"
+	customhttptransport "Microservices/microservices/vault/infrastructure"
+
 	"github.com/gorilla/mux"
 	stdprometheus "github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -23,6 +24,12 @@ func MakeVaultHttpHandler(endpoints Endpoints, logger logrus.Logger) http.Handle
 		customhttptransport.ServerErrorEncoder(encodeError),
 	}
 
+	//rabbit.listen([]string).respond([]string).handler(
+	//rabbit.newhandler(
+	//endpoint
+	//dec
+	//ecn
+	//options
 	r.Methods("POST").Path("/hash").Handler(customhttptransport.NewServer(
 		endpoints.HashEndpoint,
 		decodeHTTPHashRequest,

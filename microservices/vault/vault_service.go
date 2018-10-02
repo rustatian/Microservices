@@ -1,8 +1,8 @@
 package vault
 
 import (
+	"Microservices/microservices/vault/application"
 	"context"
-	"github.com/ValeryPiashchynski/Microservices/microservices/vault/application"
 )
 
 type Service interface {

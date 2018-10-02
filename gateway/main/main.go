@@ -11,7 +11,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ValeryPiashchynski/Microservices/gateway"
+	"Microservices/gateway"
+
 	"github.com/go-kit/kit/log"
 	"github.com/gorilla/handlers"
 )

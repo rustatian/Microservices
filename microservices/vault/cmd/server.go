@@ -13,7 +13,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ValeryPiashchynski/Microservices/svcdiscovery"
+	_ "Microservices/svcdiscovery"
+
 	"github.com/streadway/amqp"
 	"google.golang.org/grpc"
 
@@ -21,9 +22,9 @@ import (
 	stdopentracing "github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 
-	"github.com/ValeryPiashchynski/Microservices/microservices/proto/vault"
-	"github.com/ValeryPiashchynski/Microservices/microservices/vault"
-	"github.com/ValeryPiashchynski/Microservices/microservices/vault/application"
+	"Microservices/microservices/proto/vault"
+	"Microservices/microservices/vault"
+	"Microservices/microservices/vault/application"
 )
 
 func main() {
